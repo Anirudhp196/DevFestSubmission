@@ -1,22 +1,16 @@
+# Render Blueprint: deploy backend API
+# https://render.com/docs/blueprint-spec
 services:
   - type: web
     name: ticketchain-api
-    env: node
+    runtime: node
     rootDir: backend/api
-    plan: free
+
     buildCommand: npm install
-    startCommand: node src/index.js
+    startCommand: npm start
+
     envVars:
       - key: SOLANA_RPC_URL
         value: https://api.devnet.solana.com
-
-  - type: web
-    name: ticketchain-frontend
-    runtime: static
-    rootDir: Frontend
-    plan: free
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    envVars:
-      - key: VITE_API_URL
-        value: https://ticketchain-api.onrender.com
+      - key: NODE_VERSION
+        value: 20

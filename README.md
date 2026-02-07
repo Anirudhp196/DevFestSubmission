@@ -200,6 +200,61 @@ Browser (React + Phantom Wallet)
 
 ---
 
+## Deployment
+
+**Recommended:** Frontend on **Vercel**, API on **Railway** or **Render**. All have free tiers and deploy from GitHub.
+
+### 1. Deploy the API (Railway or Render)
+
+Your API is a long-running Node server (Express + in-memory state). It needs a Node runtime, not serverless.
+
+**Railway**
+1. Push the repo to GitHub.
+2. Go to [railway.app](https://railway.app), sign in with GitHub.
+3. New Project → Deploy from GitHub repo → select the repo.
+4. Set **Root Directory** to `backend/api`.
+5. Add env var: `SOLANA_RPC_URL` = `https://api.devnet.solana.com` (or a dedicated RPC URL for production).
+6. Railway assigns a URL like `https://your-api.up.railway.app`. Copy it.
+
+**Render**
+1. [render.com](https://render.com) → New → Web Service.
+2. Connect the repo, set **Root Directory** to `backend/api`.
+3. Build: `npm install` | Start: `node src/index.js`.
+4. Add env: `SOLANA_RPC_URL`. Copy the service URL (e.g. `https://your-api.onrender.com`).
+
+### 2. Deploy the Frontend (Vercel)
+
+1. Go to [vercel.com](https://vercel.com), import the same GitHub repo.
+2. Set **Root Directory** to `Frontend`.
+3. Add **Environment Variable**:  
+   `VITE_API_URL` = your API URL from step 1 (e.g. `https://your-api.up.railway.app`).  
+   No trailing slash.
+4. Deploy. Vercel builds with `pnpm build` (or `npm run build`) and serves the static app.
+
+### 3. Point the frontend at the API
+
+The app calls the API using `VITE_API_URL`. In production that must be the deployed API URL so the browser can reach it. CORS is already enabled in the API for any origin; for production you can restrict it to your Vercel domain if you want.
+
+### Optional: dedicated Solana RPC
+
+For production traffic, use a dedicated RPC instead of the public devnet endpoint (rate limits, reliability):
+
+- [Helius](https://helius.dev) — free tier
+- [QuickNode](https://quicknode.com) — free tier
+- [Triton (RPC Pool)](https://triton.one)
+
+Set `SOLANA_RPC_URL` in your API deployment to the provider’s devnet (or mainnet) URL.
+
+### Summary
+
+| Part        | Platform  | Notes                                      |
+|------------|-----------|--------------------------------------------|
+| Frontend   | Vercel    | Static build; set `VITE_API_URL` to API   |
+| API        | Railway or Render | Node server; set `SOLANA_RPC_URL`   |
+| Solana program | Already on devnet | No redeploy unless you change the program |
+
+---
+
 ## Rebuilding the Solana Program (optional)
 
 Only needed if you change the Rust code in `backend/program/`. Requires Rust, Solana CLI, and Anchor.
