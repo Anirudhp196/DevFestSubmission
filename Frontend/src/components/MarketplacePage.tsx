@@ -4,9 +4,8 @@
  * Key Features:
  * - Secondary market for ticket resale
  * - Fair pricing display (40/40/20 split visualization)
- * - Real-time pricing updates
+ * - Data from API (mock until Listing PDAs are wired)
  * - Seller reputation badges
- * - Anti-scalping indicators
  * 
  * Design Goal:
  * - Show transparency in resale economics
@@ -14,68 +13,30 @@
  * - Highlight fairness vs traditional ticketing
  */
 
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Navigation } from './Navigation';
 import { TrendingUp, TrendingDown, Clock, Shield, Star, DollarSign, Users, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-// Mock marketplace listings
-const listings = [
-  {
-    id: 1,
-    event: "Synthwave Sunset Festival",
-    artist: "Neon Dreams",
-    originalPrice: 0.5,
-    currentPrice: 0.55,
-    seller: "0x7a2f...3b4c",
-    sellerRep: "Gold",
-    date: "March 15, 2026",
-    verified: true,
-    priceChange: 10,
-    listingAge: "2 hours ago"
-  },
-  {
-    id: 2,
-    event: "Jazz in the Park",
-    artist: "The Blue Notes Collective",
-    originalPrice: 0.3,
-    currentPrice: 0.28,
-    seller: "0x9c4d...7e2a",
-    sellerRep: "Silver",
-    date: "March 22, 2026",
-    verified: true,
-    priceChange: -7,
-    listingAge: "5 hours ago"
-  },
-  {
-    id: 3,
-    event: "Ethereal Beats World Tour",
-    artist: "DJ Aurora",
-    originalPrice: 0.8,
-    currentPrice: 0.82,
-    seller: "0x3f8e...1d6b",
-    sellerRep: "Gold",
-    date: "April 5, 2026",
-    verified: true,
-    priceChange: 2.5,
-    listingAge: "1 day ago"
-  },
-  {
-    id: 4,
-    event: "Indie Rock Underground",
-    artist: "The Echoes",
-    originalPrice: 0.4,
-    currentPrice: 0.41,
-    seller: "0x6b2c...9f3e",
-    sellerRep: "Bronze",
-    date: "April 12, 2026",
-    verified: true,
-    priceChange: 2.5,
-    listingAge: "3 hours ago"
-  }
-];
+import { getListings } from '../lib/api';
+import type { Listing } from '../types';
 
 export function MarketplacePage() {
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    getListings()
+      .then((data) => { if (!cancelled) setListings(data); })
+      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load listings'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#090b0b] text-[#fafaf9]">
       <Navigation />
@@ -213,6 +174,18 @@ export function MarketplacePage() {
             </p>
           </motion.div>
           
+          {error && (
+            <div className="mb-6 p-4 bg-[rgba(255,100,100,0.1)] border border-[rgba(255,100,100,0.3)] rounded-xl text-[#ff6464] font-['Inter:Medium',sans-serif]">
+              {error}
+            </div>
+          )}
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-32 bg-[#131615] border border-[#262b2a] rounded-2xl animate-pulse" />
+              ))}
+            </div>
+          ) : (
           <div className="space-y-4">
             {listings.map((listing, index) => (
               <motion.div
@@ -301,9 +274,9 @@ export function MarketplacePage() {
                       </div>
                     </div>
                     
-                    {/* CTA */}
+                    {/* CTA - primary purchase for now; resale buy_listing flow can use listing.id */}
                     <Link 
-                      to="/purchase/1"
+                      to={`/purchase/1`}
                       className="bg-[#32b377] hover:bg-[#2a9865] transition-all px-8 py-3.5 rounded-xl font-['Inter:Medium',sans-serif] text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)] whitespace-nowrap"
                     >
                       Buy Now
@@ -340,6 +313,7 @@ export function MarketplacePage() {
               </motion.div>
             ))}
           </div>
+          )}
         </div>
       </section>
       

@@ -19,12 +19,16 @@ import { motion } from 'motion/react';
 import { Navigation } from './Navigation';
 import { Calendar, MapPin, Shield, Check, Wallet, ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
+import { Transaction } from '@solana/web3.js';
+import { useWallet as useSolanaWallet, useConnection } from '@solana/wallet-adapter-react';
 import { buyTicket, getEvent } from '../lib/api';
 import { useWallet, shortenAddress } from '../contexts/WalletContext';
 import type { Event } from '../types';
 
 export function PurchaseTicketPage() {
   const { eventId } = useParams();
+  const { connection } = useConnection();
+  const { publicKey: walletPublicKey } = useSolanaWallet();
   const { connected, publicKey, balance, connect } = useWallet();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,12 +60,23 @@ export function PurchaseTicketPage() {
       connect();
       return;
     }
+    const adapter = walletPublicKey ? (useSolanaWallet as () => { wallet: { adapter: { signTransaction: (tx: Transaction) => Promise<Transaction> } } })() : null;
     setIsSubmitting(true);
     setPurchaseError(null);
     setPurchaseSuccess(null);
     try {
       const result = await buyTicket(String(eventId), publicKey, event.tier);
-      setPurchaseSuccess(result.signature ?? 'Purchase confirmed.');
+      if (result.transaction) {
+        const wallet = (useSolanaWallet as () => { wallet: { adapter: { signTransaction: (tx: Transaction) => Promise<Transaction> } } })();
+        if (!wallet?.wallet?.adapter) throw new Error('Wallet not ready to sign');
+        const tx = Transaction.from(Buffer.from(result.transaction, 'base64'));
+        const signed = await wallet.wallet.adapter.signTransaction(tx);
+        const sig = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false });
+        await connection.confirmTransaction(sig, 'confirmed');
+        setPurchaseSuccess(`Purchase submitted. Signature: ${sig}`);
+      } else {
+        setPurchaseSuccess(result.signature ?? result.message ?? 'Purchase confirmed.');
+      }
     } catch (err) {
       setPurchaseError(err instanceof Error ? err.message : 'Purchase failed.');
     } finally {

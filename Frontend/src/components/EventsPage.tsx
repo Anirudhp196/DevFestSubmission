@@ -104,9 +104,13 @@ export function EventsPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                whileHover={{ y: -8 }}
                 className="bg-[#131615] border border-[#262b2a] rounded-2xl overflow-hidden hover:border-[#32b377] transition-all group"
               >
+                <Link
+                  to={`/purchase/${event.id}`}
+                  className="block cursor-pointer"
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
                 {/* Event Image - Using unsplash for real concert photos */}
                 <div className="relative h-48 bg-gradient-to-br from-[#32b377] to-[#1a6a4a] overflow-hidden">
                   <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all" />
@@ -187,14 +191,12 @@ export function EventsPage() {
                         {event.price} SOL
                       </div>
                     </div>
-                    <Link
-                      to={`/purchase/${event.id}`}
-                      className="inline-block bg-[#32b377] hover:bg-[#2a9865] transition-all px-6 py-3 rounded-xl font-['Inter:Medium',sans-serif] text-sm text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)]"
-                    >
+                    <span className="inline-block bg-[#32b377] group-hover:bg-[#2a9865] transition-all px-6 py-3 rounded-xl font-['Inter:Medium',sans-serif] text-sm text-[#090b0b] shadow-lg">
                       Get Tickets
-                    </Link>
+                    </span>
                   </div>
                 </div>
+                </Link>
               </motion.div>
             ))}
           </div>
