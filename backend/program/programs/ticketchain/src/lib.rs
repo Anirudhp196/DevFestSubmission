@@ -1,8 +1,13 @@
-//! TicketChain: create events and mint ticket NFTs on Solana.
+//! TicketChain: create events, mint ticket NFTs, and enable on-chain resale on Solana.
 
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface, mint_to, MintTo};
+use anchor_spl::token_interface::{
+    Mint, TokenAccount, TokenInterface,
+    mint_to, MintTo,
+    transfer_checked, TransferChecked,
+    close_account, CloseAccount,
+};
 
 declare_id!("BxjzLBTGVQYHRAC5NBGvyn9r6V7GfVHWUExFcJbRoCts");
 
@@ -11,7 +16,6 @@ pub mod ticketchain {
     use super::*;
 
     /// Create a new event. The event account is a PDA derived from organizer + nonce.
-    /// The organizer is the only signer required.
     pub fn create_event(
         ctx: Context<CreateEvent>,
         nonce: u64,
@@ -91,7 +95,167 @@ pub mod ticketchain {
 
         Ok(())
     }
+
+    /// List a ticket for resale. Transfers the NFT into an escrow account
+    /// owned by the Listing PDA.
+    pub fn list_for_resale(ctx: Context<ListForResale>, price_lamports: u64) -> Result<()> {
+        require!(price_lamports > 0, ErrorCode::InvalidPrice);
+
+        // Transfer NFT from seller to escrow
+        transfer_checked(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    from: ctx.accounts.seller_token_account.to_account_info(),
+                    mint: ctx.accounts.ticket_mint.to_account_info(),
+                    to: ctx.accounts.escrow_token_account.to_account_info(),
+                    authority: ctx.accounts.seller.to_account_info(),
+                },
+            ),
+            1,
+            0, // decimals
+        )?;
+
+        let listing = &mut ctx.accounts.listing;
+        listing.seller = ctx.accounts.seller.key();
+        listing.event = ctx.accounts.event.key();
+        listing.ticket_mint = ctx.accounts.ticket_mint.key();
+        listing.price_lamports = price_lamports;
+        listing.bump = ctx.bumps.listing;
+
+        Ok(())
+    }
+
+    /// Buy a resale ticket. SOL is split 40/40/20 (artist / seller / platform).
+    /// NFT is transferred from escrow to buyer. Listing is closed.
+    pub fn buy_resale(ctx: Context<BuyResale>) -> Result<()> {
+        let price = ctx.accounts.listing.price_lamports;
+        let artist_share = price * 40 / 100;
+        let seller_share = price * 40 / 100;
+        let platform_share = price - artist_share - seller_share; // 20%
+
+        // 40% to organizer (artist)
+        anchor_lang::system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.organizer.to_account_info(),
+                },
+            ),
+            artist_share,
+        )?;
+
+        // 40% to seller
+        anchor_lang::system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.seller.to_account_info(),
+                },
+            ),
+            seller_share,
+        )?;
+
+        // 20% to platform
+        anchor_lang::system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.platform.to_account_info(),
+                },
+            ),
+            platform_share,
+        )?;
+
+        // Transfer NFT from escrow to buyer
+        let ticket_mint_key = ctx.accounts.ticket_mint.key();
+        let bump = ctx.accounts.listing.bump;
+        let signer_seeds: &[&[&[u8]]] = &[&[
+            b"listing",
+            ticket_mint_key.as_ref(),
+            &[bump],
+        ]];
+
+        transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    from: ctx.accounts.escrow_token_account.to_account_info(),
+                    mint: ctx.accounts.ticket_mint.to_account_info(),
+                    to: ctx.accounts.buyer_token_account.to_account_info(),
+                    authority: ctx.accounts.listing.to_account_info(),
+                },
+                signer_seeds,
+            ),
+            1,
+            0,
+        )?;
+
+        // Close the escrow token account (rent returned to seller)
+        close_account(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                CloseAccount {
+                    account: ctx.accounts.escrow_token_account.to_account_info(),
+                    destination: ctx.accounts.seller.to_account_info(),
+                    authority: ctx.accounts.listing.to_account_info(),
+                },
+                signer_seeds,
+            ),
+        )?;
+
+        // Listing PDA is closed via `close = seller` at end of instruction
+        Ok(())
+    }
+
+    /// Cancel a resale listing. Returns the NFT to the seller and closes the listing.
+    pub fn cancel_listing(ctx: Context<CancelListing>) -> Result<()> {
+        let ticket_mint_key = ctx.accounts.ticket_mint.key();
+        let bump = ctx.accounts.listing.bump;
+        let signer_seeds: &[&[&[u8]]] = &[&[
+            b"listing",
+            ticket_mint_key.as_ref(),
+            &[bump],
+        ]];
+
+        // Transfer NFT back to seller
+        transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    from: ctx.accounts.escrow_token_account.to_account_info(),
+                    mint: ctx.accounts.ticket_mint.to_account_info(),
+                    to: ctx.accounts.seller_token_account.to_account_info(),
+                    authority: ctx.accounts.listing.to_account_info(),
+                },
+                signer_seeds,
+            ),
+            1,
+            0,
+        )?;
+
+        // Close the escrow token account
+        close_account(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                CloseAccount {
+                    account: ctx.accounts.escrow_token_account.to_account_info(),
+                    destination: ctx.accounts.seller.to_account_info(),
+                    authority: ctx.accounts.listing.to_account_info(),
+                },
+                signer_seeds,
+            ),
+        )?;
+
+        // Listing PDA is closed via `close = seller`
+        Ok(())
+    }
 }
+
+// ── Account structs ──────────────────────────────────────────────────
 
 #[account]
 pub struct Event {
@@ -106,6 +270,17 @@ pub struct Event {
     pub sold: u32,
 }
 
+#[account]
+pub struct Listing {
+    pub seller: Pubkey,        // 32
+    pub event: Pubkey,         // 32
+    pub ticket_mint: Pubkey,   // 32
+    pub price_lamports: u64,   // 8
+    pub bump: u8,              // 1
+}
+
+// ── Instruction contexts ─────────────────────────────────────────────
+
 #[derive(Accounts)]
 #[instruction(nonce: u64)]
 pub struct CreateEvent<'info> {
@@ -115,7 +290,6 @@ pub struct CreateEvent<'info> {
     #[account(
         init,
         payer = organizer,
-        // 8 discriminator + 32 organizer + 8 nonce + (4+64) title + (4+64) venue + 8 date_ts + (4+32) tier_name + 8 price_lamports + 4 supply + 4 sold
         space = 8 + 32 + 8 + 68 + 68 + 8 + 36 + 8 + 4 + 4,
         seeds = [b"event", organizer.key().as_ref(), &nonce.to_le_bytes()],
         bump
@@ -125,7 +299,6 @@ pub struct CreateEvent<'info> {
     pub system_program: Program<'info, System>,
 }
 
-/// Program PDA that signs as mint authority for ticket mints.
 #[derive(Accounts)]
 pub struct BuyTicket<'info> {
     #[account(mut)]
@@ -140,7 +313,7 @@ pub struct BuyTicket<'info> {
     )]
     pub event: Account<'info, Event>,
 
-    /// PDA that signs for minting (mint authority for ticket_mint).
+    /// CHECK: PDA used as mint authority for ticket mints.
     #[account(
         seeds = [b"ticket_authority", event.key().as_ref(), &event.sold.to_le_bytes()],
         bump
@@ -170,6 +343,139 @@ pub struct BuyTicket<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct ListForResale<'info> {
+    #[account(mut)]
+    pub seller: Signer<'info>,
+
+    pub event: Box<Account<'info, Event>>,
+
+    pub ticket_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    #[account(
+        init,
+        payer = seller,
+        space = 8 + 32 + 32 + 32 + 8 + 1,
+        seeds = [b"listing", ticket_mint.key().as_ref()],
+        bump,
+    )]
+    pub listing: Box<Account<'info, Listing>>,
+
+    #[account(
+        mut,
+        associated_token::mint = ticket_mint,
+        associated_token::authority = seller,
+    )]
+    pub seller_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        init,
+        payer = seller,
+        token::mint = ticket_mint,
+        token::authority = listing,
+        seeds = [b"escrow", ticket_mint.key().as_ref()],
+        bump,
+    )]
+    pub escrow_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    pub token_program: Interface<'info, TokenInterface>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct BuyResale<'info> {
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+
+    /// CHECK: Seller receives 40%. Validated by listing.seller constraint.
+    #[account(mut, constraint = seller.key() == listing.seller @ ErrorCode::InvalidSeller)]
+    pub seller: AccountInfo<'info>,
+
+    /// CHECK: Organizer (artist) receives 40%. Validated by event.organizer.
+    #[account(mut, constraint = organizer.key() == event.organizer @ ErrorCode::InvalidOrganizer)]
+    pub organizer: AccountInfo<'info>,
+
+    /// CHECK: Platform receives 20%.
+    #[account(mut)]
+    pub platform: AccountInfo<'info>,
+
+    pub event: Box<Account<'info, Event>>,
+
+    pub ticket_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    #[account(
+        mut,
+        seeds = [b"listing", ticket_mint.key().as_ref()],
+        bump = listing.bump,
+        constraint = listing.event == event.key(),
+        constraint = listing.ticket_mint == ticket_mint.key(),
+        close = seller,
+    )]
+    pub listing: Box<Account<'info, Listing>>,
+
+    #[account(
+        mut,
+        token::mint = ticket_mint,
+        token::authority = listing,
+        seeds = [b"escrow", ticket_mint.key().as_ref()],
+        bump,
+    )]
+    pub escrow_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        init_if_needed,
+        payer = buyer,
+        associated_token::mint = ticket_mint,
+        associated_token::authority = buyer,
+    )]
+    pub buyer_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    pub token_program: Interface<'info, TokenInterface>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct CancelListing<'info> {
+    #[account(mut)]
+    pub seller: Signer<'info>,
+
+    pub ticket_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    #[account(
+        mut,
+        seeds = [b"listing", ticket_mint.key().as_ref()],
+        bump = listing.bump,
+        constraint = listing.seller == seller.key() @ ErrorCode::InvalidSeller,
+        close = seller,
+    )]
+    pub listing: Box<Account<'info, Listing>>,
+
+    #[account(
+        init_if_needed,
+        payer = seller,
+        associated_token::mint = ticket_mint,
+        associated_token::authority = seller,
+    )]
+    pub seller_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        token::mint = ticket_mint,
+        token::authority = listing,
+        seeds = [b"escrow", ticket_mint.key().as_ref()],
+        bump,
+    )]
+    pub escrow_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    pub token_program: Interface<'info, TokenInterface>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+}
+
+// ── Errors ───────────────────────────────────────────────────────────
+
 #[error_code]
 pub enum ErrorCode {
     #[msg("Title too long")]
@@ -184,4 +490,10 @@ pub enum ErrorCode {
     SoldOut,
     #[msg("Overflow")]
     Overflow,
+    #[msg("Invalid price")]
+    InvalidPrice,
+    #[msg("Invalid seller")]
+    InvalidSeller,
+    #[msg("Invalid organizer")]
+    InvalidOrganizer,
 }

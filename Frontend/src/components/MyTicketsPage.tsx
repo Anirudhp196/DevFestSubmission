@@ -10,14 +10,18 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Navigation } from './Navigation';
-import { Calendar, Ticket, Users, X, TrendingUp, Shield, DollarSign } from 'lucide-react';
+import { Calendar, Ticket, Users, X, Shield } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getMyTickets, createListing } from '../lib/api';
+import { getMyTickets, listForResale } from '../lib/api';
 import { useWallet, shortenAddress } from '../contexts/WalletContext';
+import { useConnection, useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
+import { Transaction } from '@solana/web3.js';
 import type { Ticket as TicketType } from '../types';
 
 export function MyTicketsPage() {
   const { connected, publicKey, connect } = useWallet();
+  const { connection } = useConnection();
+  const wallet = useSolanaWallet();
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,31 +67,36 @@ export function MyTicketsPage() {
   }
 
   async function handleListForResale() {
-    if (!resaleTicket || !publicKey) return;
-    const currentPrice = Number(resalePrice) || 0;
-    if (currentPrice <= 0) return;
-    const original = Number(resaleTicket.purchasePrice) || 0;
-    const priceChange = original > 0 ? Math.round(((currentPrice - original) / original) * 10000) / 100 : 0;
-    const seller = String(publicKey).slice(0, 6) + '...' + String(publicKey).slice(-4);
+    if (!resaleTicket || !publicKey || !wallet.signTransaction) return;
+    const priceSol = Number(resalePrice) || 0;
+    if (priceSol <= 0) return;
+
+    // Need eventPubkey and ticketMint to build the on-chain listing
+    if (!resaleTicket.eventPubkey || !resaleTicket.ticketMint) {
+      setError('This ticket does not have on-chain data (eventPubkey/ticketMint). Only on-chain tickets can be listed for resale.');
+      return;
+    }
 
     setListing(true);
+    setError(null);
     try {
-      await createListing({
-        ticketId: resaleTicket.id,
-        event: resaleTicket.event,
-        artist: resaleTicket.artist,
-        originalPrice: original,
-        currentPrice,
-        seller,
-        sellerWallet: publicKey,
-        sellerRep: 'Bronze',
-        date: resaleTicket.date,
-        verified: true,
-        priceChange,
-      });
+      // 1. Build the list_for_resale transaction via API
+      const { transaction: txBase64 } = await listForResale(
+        publicKey,
+        resaleTicket.eventPubkey,
+        resaleTicket.ticketMint,
+        priceSol,
+      );
+
+      // 2. Deserialize, sign with wallet, and submit
+      const tx = Transaction.from(Buffer.from(txBase64, 'base64'));
+      const signed = await wallet.signTransaction(tx);
+      const sig = await connection.sendRawTransaction(signed.serialize());
+      await connection.confirmTransaction(sig, 'confirmed');
+
       setListSuccess(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create listing');
+      setError(e instanceof Error ? e.message : 'Failed to list ticket for resale');
     } finally {
       setListing(false);
     }
@@ -286,18 +295,18 @@ export function MyTicketsPage() {
                   {/* Price input */}
                   <div>
                     <label className="block text-sm mb-2 font-['Inter:Medium',sans-serif]">Resale Price (SOL)</label>
-                    <div className="relative">
+                    <div className="flex items-center gap-3">
                       <input
                         type="number"
                         step="0.01"
                         min="0"
                         value={resalePrice}
                         onChange={(e) => setResalePrice(e.target.value)}
-                        className="w-full bg-[rgba(38,43,42,0.5)] border-2 border-[#262b2a] focus:border-[#32b377] rounded-xl px-5 py-3 text-2xl text-[#fafaf9] focus:outline-none transition-colors font-['Space_Grotesk:Bold',sans-serif]"
+                        className="flex-1 bg-[rgba(38,43,42,0.5)] border-2 border-[#262b2a] focus:border-[#32b377] rounded-xl px-5 py-3 text-2xl text-[#fafaf9] focus:outline-none transition-colors font-['Space_Grotesk:Bold',sans-serif]"
                       />
-                      <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#87928e] font-['Space_Grotesk:Bold',sans-serif]">
+                      <span className="text-[#87928e] text-lg font-['Space_Grotesk:Bold',sans-serif] shrink-0">
                         SOL
-                      </div>
+                      </span>
                     </div>
                     {resaleTicket.suggestedPrice != null && (
                       <button

@@ -19,6 +19,12 @@ const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 const SYSTEM_PROGRAM_ID = new PublicKey('11111111111111111111111111111111');
 
+// Platform wallet receives 20% of resale proceeds
+const PLATFORM_WALLET = new PublicKey(process.env.PLATFORM_WALLET ?? 'GFxY452qfw5nwA4N9KQ28zZTmJL9CD1eenydHY9kEE32');
+
+// Listing account discriminator (first 8 bytes of sha256("account:Listing"))
+const LISTING_DISCRIMINATOR = Buffer.from([218, 32, 50, 73, 43, 134, 26, 58]);
+
 function getConnection() {
   const rpc = process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
   return new Connection(rpc);
@@ -167,4 +173,180 @@ export async function buildCreateEventTransaction(organizerPubkey, args) {
     transaction: serialized.toString('base64'),
     eventPubkey: eventPda.toBase58(),
   };
+}
+
+// ── Resale functions ────────────────────────────────────────────────
+
+/**
+ * Build list_for_resale transaction. Seller lists a ticket NFT on-chain.
+ */
+export async function buildListForResaleTransaction(sellerPubkey, eventPubkey, ticketMintPubkey, priceLamports) {
+  const connection = getConnection();
+  const program = getProgram(connection);
+  const sellerPk = new PublicKey(sellerPubkey);
+  const eventPk = new PublicKey(eventPubkey);
+  const ticketMintPk = new PublicKey(ticketMintPubkey);
+
+  const [listingPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from('listing'), ticketMintPk.toBuffer()],
+    PROGRAM_ID
+  );
+  const [escrowPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from('escrow'), ticketMintPk.toBuffer()],
+    PROGRAM_ID
+  );
+  const sellerAta = getAssociatedTokenAddressSync(ticketMintPk, sellerPk);
+
+  const tx = await program.methods
+    .listForResale(new BN(priceLamports))
+    .accounts({
+      seller: sellerPk,
+      event: eventPk,
+      ticketMint: ticketMintPk,
+      listing: listingPda,
+      sellerTokenAccount: sellerAta,
+      escrowTokenAccount: escrowPda,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: SYSTEM_PROGRAM_ID,
+    })
+    .transaction();
+
+  tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+  tx.feePayer = sellerPk;
+
+  const serialized = tx.serialize({ requireAllSignatures: false });
+  return {
+    transaction: serialized.toString('base64'),
+    listingPubkey: listingPda.toBase58(),
+  };
+}
+
+/**
+ * Build buy_resale transaction. Buyer purchases a listed resale ticket.
+ * SOL is split 40/40/20 (organizer / seller / platform) on-chain.
+ */
+export async function buildBuyResaleTransaction(buyerPubkey, ticketMintPubkey) {
+  const connection = getConnection();
+  const program = getProgram(connection);
+  const buyerPk = new PublicKey(buyerPubkey);
+  const ticketMintPk = new PublicKey(ticketMintPubkey);
+
+  // Derive listing & escrow PDAs
+  const [listingPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from('listing'), ticketMintPk.toBuffer()],
+    PROGRAM_ID
+  );
+  const [escrowPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from('escrow'), ticketMintPk.toBuffer()],
+    PROGRAM_ID
+  );
+
+  // Fetch listing to get seller + event
+  const listingInfo = await connection.getAccountInfo(listingPda);
+  if (!listingInfo) throw new Error('Listing not found on-chain');
+  const listingData = listingInfo.data;
+  const seller = new PublicKey(listingData.slice(8, 40));
+  const eventPk = new PublicKey(listingData.slice(40, 72));
+
+  // Fetch event to get organizer
+  const eventData = await fetchEvent(connection, eventPk);
+  if (!eventData) throw new Error('Event account not found for this listing');
+
+  const buyerAta = getAssociatedTokenAddressSync(ticketMintPk, buyerPk);
+
+  const tx = await program.methods
+    .buyResale()
+    .accounts({
+      buyer: buyerPk,
+      seller,
+      organizer: eventData.organizer,
+      platform: PLATFORM_WALLET,
+      event: eventPk,
+      ticketMint: ticketMintPk,
+      listing: listingPda,
+      escrowTokenAccount: escrowPda,
+      buyerTokenAccount: buyerAta,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: SYSTEM_PROGRAM_ID,
+    })
+    .transaction();
+
+  tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+  tx.feePayer = buyerPk;
+
+  const serialized = tx.serialize({ requireAllSignatures: false });
+  return serialized.toString('base64');
+}
+
+/**
+ * Build cancel_listing transaction. Seller cancels and recovers their NFT.
+ */
+export async function buildCancelListingTransaction(sellerPubkey, ticketMintPubkey) {
+  const connection = getConnection();
+  const program = getProgram(connection);
+  const sellerPk = new PublicKey(sellerPubkey);
+  const ticketMintPk = new PublicKey(ticketMintPubkey);
+
+  const [listingPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from('listing'), ticketMintPk.toBuffer()],
+    PROGRAM_ID
+  );
+  const [escrowPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from('escrow'), ticketMintPk.toBuffer()],
+    PROGRAM_ID
+  );
+  const sellerAta = getAssociatedTokenAddressSync(ticketMintPk, sellerPk);
+
+  const tx = await program.methods
+    .cancelListing()
+    .accounts({
+      seller: sellerPk,
+      ticketMint: ticketMintPk,
+      listing: listingPda,
+      sellerTokenAccount: sellerAta,
+      escrowTokenAccount: escrowPda,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: SYSTEM_PROGRAM_ID,
+    })
+    .transaction();
+
+  tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+  tx.feePayer = sellerPk;
+
+  const serialized = tx.serialize({ requireAllSignatures: false });
+  return serialized.toString('base64');
+}
+
+/**
+ * Fetch all on-chain Listing accounts using getProgramAccounts.
+ * Returns parsed listing objects.
+ */
+export async function fetchAllListings() {
+  const connection = getConnection();
+  const accounts = await connection.getProgramAccounts(PROGRAM_ID, {
+    filters: [
+      { memcmp: { offset: 0, bytes: LISTING_DISCRIMINATOR.toString('base64'), encoding: 'base64' } },
+    ],
+  });
+
+  return accounts.map(({ pubkey, account }) => {
+    const data = account.data;
+    const seller = new PublicKey(data.slice(8, 40));
+    const event = new PublicKey(data.slice(40, 72));
+    const ticketMint = new PublicKey(data.slice(72, 104));
+    const priceLamports = data.readBigUInt64LE(104);
+    const bump = data[112];
+    return {
+      pubkey: pubkey.toBase58(),
+      seller: seller.toBase58(),
+      event: event.toBase58(),
+      ticketMint: ticketMint.toBase58(),
+      priceLamports: Number(priceLamports),
+      priceSol: Number(priceLamports) / 1e9,
+      bump,
+    };
+  });
 }

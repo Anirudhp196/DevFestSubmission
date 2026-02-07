@@ -30,7 +30,9 @@ export interface Ticket {
   purchasePrice: number;
   suggestedPrice: number;
   mintAddress?: string;
+  ticketMint?: string;
   eventId?: string | number;
+  eventPubkey?: string;
 }
 
 export interface Listing {
@@ -40,9 +42,12 @@ export interface Listing {
   originalPrice: number;
   currentPrice: number;
   seller: string;
+  sellerWallet?: string;
   sellerRep: string;
   date: string;
   verified: boolean;
   priceChange: number;
   listingAge: string;
+  ticketMint?: string;
+  eventPubkey?: string;
 }

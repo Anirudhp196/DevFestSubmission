@@ -41,12 +41,68 @@
         { "name": "systemProgram", "address": "11111111111111111111111111111111" }
       ],
       "args": []
+    },
+    {
+      "name": "listForResale",
+      "discriminator": [235, 101, 201, 204, 83, 163, 213, 243],
+      "accounts": [
+        { "name": "seller", "writable": true, "signer": true },
+        { "name": "event", "writable": false },
+        { "name": "ticketMint", "writable": false },
+        { "name": "listing", "writable": true },
+        { "name": "sellerTokenAccount", "writable": true },
+        { "name": "escrowTokenAccount", "writable": true },
+        { "name": "tokenProgram", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { "name": "associatedTokenProgram", "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL" },
+        { "name": "systemProgram", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "priceLamports", "type": "u64" }
+      ]
+    },
+    {
+      "name": "buyResale",
+      "discriminator": [71, 230, 159, 123, 90, 231, 111, 104],
+      "accounts": [
+        { "name": "buyer", "writable": true, "signer": true },
+        { "name": "seller", "writable": true },
+        { "name": "organizer", "writable": true },
+        { "name": "platform", "writable": true },
+        { "name": "event", "writable": false },
+        { "name": "ticketMint", "writable": false },
+        { "name": "listing", "writable": true },
+        { "name": "escrowTokenAccount", "writable": true },
+        { "name": "buyerTokenAccount", "writable": true },
+        { "name": "tokenProgram", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { "name": "associatedTokenProgram", "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL" },
+        { "name": "systemProgram", "address": "11111111111111111111111111111111" }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancelListing",
+      "discriminator": [41, 183, 50, 232, 230, 233, 157, 70],
+      "accounts": [
+        { "name": "seller", "writable": true, "signer": true },
+        { "name": "ticketMint", "writable": false },
+        { "name": "listing", "writable": true },
+        { "name": "sellerTokenAccount", "writable": true },
+        { "name": "escrowTokenAccount", "writable": true },
+        { "name": "tokenProgram", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { "name": "associatedTokenProgram", "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL" },
+        { "name": "systemProgram", "address": "11111111111111111111111111111111" }
+      ],
+      "args": []
     }
   ],
   "accounts": [
     {
       "name": "Event",
       "discriminator": [125, 192, 125, 158, 9, 115, 152, 233]
+    },
+    {
+      "name": "Listing",
+      "discriminator": [218, 32, 50, 73, 43, 134, 26, 58]
     }
   ],
   "types": [
@@ -64,6 +120,19 @@
           { "name": "priceLamports", "type": "u64" },
           { "name": "supply", "type": "u32" },
           { "name": "sold", "type": "u32" }
+        ]
+      }
+    },
+    {
+      "name": "Listing",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "seller", "type": "pubkey" },
+          { "name": "event", "type": "pubkey" },
+          { "name": "ticketMint", "type": "pubkey" },
+          { "name": "priceLamports", "type": "u64" },
+          { "name": "bump", "type": "u8" }
         ]
       }
     }

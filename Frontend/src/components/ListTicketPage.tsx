@@ -19,16 +19,22 @@ import { Navigation } from './Navigation';
 import { Wallet, TrendingUp, Shield, DollarSign, ArrowLeft, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { getMyTickets, createListing } from '../lib/api';
+import { getMyTickets, listForResale } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
+import { useConnection, useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
+import { Transaction } from '@solana/web3.js';
 import type { Ticket } from '../types';
 
 export function ListTicketPage() {
   const { connected, publicKey, connect } = useWallet();
+  const { connection } = useConnection();
+  const solanaWallet = useSolanaWallet();
   const [ownedTickets, setOwnedTickets] = useState<Ticket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState(0);
   const [listingPrice, setListingPrice] = useState('0.55');
+  const [isListing, setIsListing] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
 
   const ticket = ownedTickets[selectedTicket];
   const hasTicket = Boolean(ticket);
@@ -60,28 +66,34 @@ export function ListTicketPage() {
   const navigate = useNavigate();
 
   async function handleListTicket() {
-    if (!hasTicket || !publicKey) return;
-    const currentPrice = Number(listingPrice) || 0;
-    const original = Number(ticket.purchasePrice) || 0;
-    const priceChange = original > 0 ? ((currentPrice - original) / original) * 100 : 0;
-    const seller = String(publicKey).slice(0, 6) + '...' + String(publicKey).slice(-4);
+    if (!hasTicket || !publicKey || !solanaWallet.signTransaction) return;
+    const priceSol = Number(listingPrice) || 0;
+    if (priceSol <= 0) return;
 
-    const newListing = await createListing({
-      ticketId: ticket.id,
-      event: ticket.event,
-      organizer: ticket.organizer,
-      originalPrice: original,
-      currentPrice,
-      seller,
-      sellerWallet: publicKey!,
-      sellerRep: 'Gold',
-      date: ticket.date,
-      verified: true,
-      priceChange: Math.round(priceChange * 100) / 100,
-    });
+    if (!ticket.eventPubkey || !ticket.ticketMint) {
+      setListError('This ticket does not have on-chain data. Only on-chain tickets can be listed.');
+      return;
+    }
 
-    // navigate to marketplace and jump to listings section
-    navigate('/marketplace#listings');
+    setIsListing(true);
+    setListError(null);
+    try {
+      const { transaction: txBase64 } = await listForResale(
+        publicKey,
+        ticket.eventPubkey,
+        ticket.ticketMint,
+        priceSol,
+      );
+      const tx = Transaction.from(Buffer.from(txBase64, 'base64'));
+      const signed = await solanaWallet.signTransaction(tx);
+      const sig = await connection.sendRawTransaction(signed.serialize());
+      await connection.confirmTransaction(sig, 'confirmed');
+      navigate('/marketplace#listings');
+    } catch (e) {
+      setListError(e instanceof Error ? e.message : 'Failed to list ticket');
+    } finally {
+      setIsListing(false);
+    }
   }
 
   return (
@@ -365,12 +377,18 @@ export function ListTicketPage() {
                   </div>
                 </div>
                 
+                {listError && (
+                  <div className="mb-4 p-3 bg-[rgba(255,100,100,0.1)] border border-[rgba(255,100,100,0.3)] rounded-xl text-[#ff6464] text-sm font-['Inter:Medium',sans-serif]">
+                    {listError}
+                  </div>
+                )}
+
                 <button
                   onClick={handleListTicket}
-                  disabled={!hasTicket}
+                  disabled={!hasTicket || isListing}
                   className="w-full bg-[#32b377] hover:bg-[#2a9865] disabled:opacity-60 disabled:cursor-not-allowed transition-all px-8 py-4 rounded-xl font-['Inter:Medium',sans-serif] text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)] mb-4"
                 >
-                  {hasTicket ? 'List Ticket' : 'Select a Ticket'}
+                  {isListing ? 'Listing on-chain...' : hasTicket ? 'List Ticket' : 'Select a Ticket'}
                 </button>
                 
                 <p className="text-xs text-center text-[#87928e] mb-6 font-['Inter:Regular',sans-serif]">

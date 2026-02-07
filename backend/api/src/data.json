@@ -84,8 +84,27 @@
       "purchasedAt": "2026-02-07T22:51:30.512Z"
     }
   ],
+  "userListings": [
+    {
+      "id": 1000,
+      "ticketId": 4,
+      "event": "DevFest 2026",
+      "artist": "On-chain Event",
+      "originalPrice": 0.2,
+      "currentPrice": 0.22,
+      "seller": "29158y...syDJ",
+      "sellerWallet": "29158yA9635yYSUnx9WYjx5wWQsMfqMm6qJq2hbDsyDJ",
+      "sellerRep": "Bronze",
+      "date": "February 6, 2026",
+      "verified": true,
+      "priceChange": 10,
+      "listingAge": "Just now",
+      "listedAt": "2026-02-07T23:05:15.036Z"
+    }
+  ],
   "nextOnChainId": 101,
   "nextTicketId": 6,
+  "nextListingId": 1001,
   "eventIdToPubkeyEntries": [
     [
       "100",

@@ -68,31 +68,16 @@ async function getEventFromApi(id: string): Promise<Event | null> {
   return { ...data, tier: data.tier ?? 'General Admission' };
 }
 
-const MOCK_LISTINGS: Listing[] = [
-  { id: 1, event: 'Synthwave Sunset Festival', organizer: 'Neon Dreams', originalPrice: 0.5, currentPrice: 0.55, seller: '7a2f...3b4c', sellerRep: 'Gold', date: 'March 15, 2026', verified: true, priceChange: 10, listingAge: '2 hours ago' },
-  { id: 2, event: 'Jazz in the Park', organizer: 'The Blue Notes Collective', originalPrice: 0.3, currentPrice: 0.28, seller: '9c4d...7e2a', sellerRep: 'Silver', date: 'March 22, 2026', verified: true, priceChange: -7, listingAge: '5 hours ago' },
-  { id: 3, event: 'Ethereal Beats World Tour', organizer: 'DJ Aurora', originalPrice: 0.8, currentPrice: 0.82, seller: '3f8e...1d6b', sellerRep: 'Gold', date: 'April 5, 2026', verified: true, priceChange: 2.5, listingAge: '1 day ago' },
-  { id: 4, event: 'Indie Rock Underground', organizer: 'The Echoes', originalPrice: 0.4, currentPrice: 0.41, seller: '6b2c...9f3e', sellerRep: 'Bronze', date: 'April 12, 2026', verified: true, priceChange: 2.5, listingAge: '3 hours ago' },
-];
-// Frontend-local listings created during this session (takes precedence)
-const LOCAL_LISTINGS: Listing[] = [];
-
-async function getListingsFromApi(): Promise<Listing[]> {
-  if (!API_BASE) return MOCK_LISTINGS;
+/** Fetch marketplace listings from API (on-chain + local). */
+export async function getListings(): Promise<Listing[]> {
+  if (!API_BASE) return [];
   try {
     const res = await apiFetch('/api/listings');
     if (!res.ok) throw new Error('Failed to fetch listings');
     return res.json();
-  } catch (e) {
-    // fallback to mock listings when API is unavailable or errors
-    return MOCK_LISTINGS;
+  } catch {
+    return [];
   }
-}
-
-/** Fetch marketplace listings. Uses mock when VITE_API_URL is not set. */
-export async function getListings(): Promise<Listing[]> {
-  const apiListings = await getListingsFromApi();
-  return [...LOCAL_LISTINGS, ...apiListings];
 }
 
 /** Fetch all events. Uses mock data when VITE_API_URL is not set. */
@@ -200,49 +185,51 @@ export async function getEventAttendees(eventId: string): Promise<{ attendees: {
   return res.json();
 }
 
-export interface CreateListingArgs {
-  ticketId?: string | number;
-  event: string;
-  organizer: string;
-  originalPrice: number;
-  currentPrice: number;
-  seller: string;
-  sellerWallet: string;
-  sellerRep?: string;
-  date: string;
-  verified?: boolean;
-  priceChange: number;
+export interface ListForResaleResponse {
+  transaction: string;
+  listingPubkey: string;
 }
 
-/** Create a marketplace listing. Falls back to in-memory mock when API not configured. */
-export async function createListing(listing: CreateListingArgs): Promise<Listing> {
-  const newListing: Listing = {
-    ...listing,
-    id: Date.now(),
-    listingAge: 'Just now',
-    verified: listing.verified ?? true,
-    sellerRep: listing.sellerRep ?? 'Bronze',
-  } as Listing;
-
-  if (!API_BASE) {
-    LOCAL_LISTINGS.unshift(newListing);
-    return newListing;
+/**
+ * Build a list_for_resale transaction (on-chain).
+ * Returns a base64 transaction for the seller to sign.
+ */
+export async function listForResale(
+  sellerWallet: string,
+  eventPubkey: string,
+  ticketMint: string,
+  priceSol: number,
+): Promise<ListForResaleResponse> {
+  const res = await apiFetch('/api/listings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sellerWallet, eventPubkey, ticketMint, priceSol }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error?.error ?? 'Failed to build listing transaction');
   }
+  return res.json();
+}
 
-  try {
-    const res = await apiFetch('/api/listings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(listing),
-    });
-    if (!res.ok) {
-      LOCAL_LISTINGS.unshift(newListing);
-      return newListing;
-    }
-    const created = await res.json();
-    return created as Listing;
-  } catch (e) {
-    LOCAL_LISTINGS.unshift(newListing);
-    return newListing;
+export interface BuyResaleResponse {
+  transaction: string;
+  message?: string;
+}
+
+/**
+ * Build a buy_resale transaction (on-chain).
+ * Returns a base64 transaction for the buyer to sign.
+ */
+export async function buyResale(buyerWallet: string, ticketMint: string): Promise<BuyResaleResponse> {
+  const res = await apiFetch('/api/listings/buy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ buyerWallet, ticketMint }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error?.error ?? 'Failed to build buy resale transaction');
   }
+  return res.json();
 }

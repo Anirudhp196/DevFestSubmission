@@ -19,15 +19,51 @@ import { motion } from 'motion/react';
 import { Navigation } from './Navigation';
 import { TrendingUp, TrendingDown, Clock, Shield, Star, DollarSign, Users, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getListings } from '../lib/api';
+import { getListings, buyResale } from '../lib/api';
+import { useWallet } from '../contexts/WalletContext';
+import { useConnection, useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
+import { Transaction } from '@solana/web3.js';
 import type { Listing } from '../types';
 
 export function MarketplacePage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [buying, setBuying] = useState<string | null>(null); // ticketMint being bought
   const listingsRef = useRef<HTMLElement | null>(null);
   const location = useLocation();
+  const { connected, publicKey, connect } = useWallet();
+  const { connection } = useConnection();
+  const wallet = useSolanaWallet();
+
+  async function handleBuyResale(listing: Listing) {
+    if (!connected || !publicKey) {
+      connect();
+      return;
+    }
+    if (!listing.ticketMint) {
+      alert('This listing does not have on-chain data. Cannot purchase.');
+      return;
+    }
+    if (!wallet.signTransaction) return;
+
+    setBuying(listing.ticketMint);
+    try {
+      const { transaction: txBase64 } = await buyResale(publicKey, listing.ticketMint);
+      const tx = Transaction.from(Buffer.from(txBase64, 'base64'));
+      const signed = await wallet.signTransaction(tx);
+      const sig = await connection.sendRawTransaction(signed.serialize());
+      await connection.confirmTransaction(sig, 'confirmed');
+      alert(`Purchase successful! Signature: ${sig.slice(0, 20)}...`);
+      // Refresh listings
+      const data = await getListings();
+      setListings(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to buy resale ticket');
+    } finally {
+      setBuying(null);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -293,10 +329,11 @@ export function MarketplacePage() {
                     
                     {/* CTA */}
                     <button
-                      className="bg-[#32b377] hover:bg-[#2a9865] transition-all px-8 py-3.5 rounded-xl font-['Inter:Medium',sans-serif] text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)] whitespace-nowrap"
-                      onClick={() => alert(`Contact seller ${listing.seller} to purchase this ${listing.event} ticket for ${listing.currentPrice} SOL. On-chain resale settlement coming soon!`)}
+                      className="bg-[#32b377] hover:bg-[#2a9865] disabled:opacity-60 transition-all px-8 py-3.5 rounded-xl font-['Inter:Medium',sans-serif] text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)] whitespace-nowrap"
+                      disabled={buying === listing.ticketMint}
+                      onClick={() => handleBuyResale(listing)}
                     >
-                      Buy Now
+                      {buying === listing.ticketMint ? 'Buying...' : 'Buy Now'}
                     </button>
                   </div>
                 </div>
