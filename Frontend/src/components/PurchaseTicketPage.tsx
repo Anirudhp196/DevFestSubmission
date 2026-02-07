@@ -14,23 +14,65 @@
  * - Success state with NFT preview
  */
 
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Navigation } from './Navigation';
 import { Calendar, MapPin, Shield, Check, Wallet, ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
+import { getEvent } from '../lib/api';
+import { useWallet, shortenAddress } from '../contexts/WalletContext';
+import type { Event } from '../types';
 
 export function PurchaseTicketPage() {
   const { eventId } = useParams();
-  
-  // Mock event data - in real app, fetch based on eventId
-  const event = {
-    title: "Synthwave Sunset Festival",
-    artist: "Neon Dreams",
-    date: "March 15, 2026",
-    location: "Los Angeles, CA",
-    price: 0.5,
-    tier: "General Admission"
-  };
+  const { connected, publicKey, balance } = useWallet();
+  const [event, setEvent] = useState<Event | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!eventId) {
+      setLoading(false);
+      setError('Missing event');
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    getEvent(eventId)
+      .then((data) => { if (!cancelled) setEvent(data); })
+      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load event'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [eventId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#090b0b] text-[#fafaf9]">
+        <Navigation />
+        <div className="pt-32 pb-16 px-8 flex items-center justify-center min-h-[40vh]">
+          <div className="text-[#87928e] font-['Inter:Medium',sans-serif]">Loading event…</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !event) {
+    return (
+      <div className="min-h-screen bg-[#090b0b] text-[#fafaf9]">
+        <Navigation />
+        <div className="pt-32 pb-16 px-8 max-w-4xl mx-auto">
+          <Link to="/events" className="inline-flex items-center gap-2 text-[#87928e] hover:text-[#32b377] transition-colors mb-6 font-['Inter:Medium',sans-serif]">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Events
+          </Link>
+          <div className="p-6 bg-[rgba(255,100,100,0.1)] border border-[rgba(255,100,100,0.3)] rounded-xl text-[#ff6464] font-['Inter:Medium',sans-serif]">
+            {error ?? 'Event not found'}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#090b0b] text-[#fafaf9]">
@@ -113,7 +155,7 @@ export function PurchaseTicketPage() {
                   <div className="pt-4 border-t border-[#262b2a]">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[#87928e] font-['Inter:Regular',sans-serif]">Ticket Tier</span>
-                      <span className="font-['Inter:Medium',sans-serif]">{event.tier}</span>
+                      <span className="font-['Inter:Medium',sans-serif]">{event.tier ?? 'General Admission'}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[#87928e] font-['Inter:Regular',sans-serif]">Quantity</span>
@@ -139,20 +181,24 @@ export function PurchaseTicketPage() {
                     <Wallet className="w-6 h-6 text-[#090b0b]" />
                   </div>
                   <div className="flex-1">
-                    <div className="font-['Inter:Medium',sans-serif] mb-1">Phantom Wallet</div>
+                    <div className="font-['Inter:Medium',sans-serif] mb-1">
+                      {connected && publicKey ? 'Connected' : 'Wallet'}
+                    </div>
                     <div className="text-sm text-[#87928e] font-mono font-['Inter:Regular',sans-serif]">
-                      9xQe...7b3K
+                      {connected && publicKey ? shortenAddress(publicKey) : 'Not connected'}
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-sm text-[#87928e] mb-1 font-['Inter:Regular',sans-serif]">Balance</div>
-                    <div className="font-['Inter:Medium',sans-serif]">12.45 SOL</div>
+                    <div className="font-['Inter:Medium',sans-serif]">◎ {balance}</div>
                   </div>
                 </div>
                 
-                <button className="mt-4 w-full text-sm text-[#32b377] hover:text-[#2a9865] transition-colors font-['Inter:Medium',sans-serif]">
-                  Change Wallet
-                </button>
+                {!connected && (
+                  <p className="mt-4 text-sm text-[#ffc864] font-['Inter:Medium',sans-serif]">
+                    Connect your wallet to complete the purchase.
+                  </p>
+                )}
               </motion.div>
               
               {/* Security Notice */}

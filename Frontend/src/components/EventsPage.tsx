@@ -6,7 +6,7 @@
  * - Filter/search functionality (visual only)
  * - Event cards with gradient overlays
  * - Live status indicators
- * - Mock data showcasing real-world use cases
+ * - Data from API client (mock until backend)
  * 
  * Engagement Strategy:
  * - High-quality concert imagery
@@ -15,100 +15,30 @@
  * - Loyalty badge indicators for early access
  */
 
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Navigation } from './Navigation';
 import { Calendar, MapPin, Users, Star, TrendingUp, Search, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-// Mock event data - showcasing different scenarios
-const events = [
-  {
-    id: 1,
-    title: "Synthwave Sunset Festival",
-    artist: "Neon Dreams",
-    date: "March 15, 2026",
-    location: "Los Angeles, CA",
-    price: "0.5 SOL",
-    available: 234,
-    total: 500,
-    status: "On Sale",
-    loyaltyRequired: null,
-    image: "concert electronic festival",
-    type: "Concert"
-  },
-  {
-    id: 2,
-    title: "Lakers vs Warriors",
-    artist: "NBA",
-    date: "March 22, 2026",
-    location: "Los Angeles, CA",
-    price: "0.8 SOL",
-    available: 89,
-    total: 300,
-    status: "Almost Sold Out",
-    loyaltyRequired: null,
-    image: "basketball game arena",
-    type: "Sports"
-  },
-  {
-    id: 3,
-    title: "Ethereal Beats World Tour",
-    artist: "DJ Aurora",
-    date: "April 5, 2026",
-    location: "Miami, FL",
-    price: "0.8 SOL",
-    available: 450,
-    total: 1000,
-    status: "Early Access",
-    loyaltyRequired: "Gold",
-    image: "electronic music concert lights",
-    type: "Concert"
-  },
-  {
-    id: 4,
-    title: "Comedy Night Live",
-    artist: "Stand-Up Stars",
-    date: "April 12, 2026",
-    location: "Austin, TX",
-    price: "0.4 SOL",
-    available: 156,
-    total: 250,
-    status: "On Sale",
-    loyaltyRequired: null,
-    image: "comedy show stage",
-    type: "Comedy"
-  },
-  {
-    id: 5,
-    title: "World Cup Qualifier",
-    artist: "FIFA",
-    date: "April 20, 2026",
-    location: "Boston, MA",
-    price: "0.6 SOL",
-    available: 320,
-    total: 800,
-    status: "On Sale",
-    loyaltyRequired: null,
-    image: "soccer stadium match",
-    type: "Sports"
-  },
-  {
-    id: 6,
-    title: "Hip Hop Block Party",
-    artist: "MC Thunder & Friends",
-    date: "May 1, 2026",
-    location: "Atlanta, GA",
-    price: "0.35 SOL",
-    available: 12,
-    total: 400,
-    status: "Almost Sold Out",
-    loyaltyRequired: null,
-    image: "hip hop concert crowd",
-    type: "Concert"
-  }
-];
+import { getEvents } from '../lib/api';
+import type { Event } from '../types';
 
 export function EventsPage() {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    getEvents()
+      .then((data) => { if (!cancelled) setEvents(data); })
+      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load events'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#090b0b] text-[#fafaf9]">
       <Navigation />
@@ -155,6 +85,18 @@ export function EventsPage() {
       {/* Events Grid */}
       <section className="py-16 px-8">
         <div className="max-w-7xl mx-auto">
+          {error && (
+            <div className="mb-6 p-4 bg-[rgba(255,100,100,0.1)] border border-[rgba(255,100,100,0.3)] rounded-xl text-[#ff6464] font-['Inter:Medium',sans-serif]">
+              {error}
+            </div>
+          )}
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-80 bg-[#131615] border border-[#262b2a] rounded-2xl animate-pulse" />
+              ))}
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {events.map((event, index) => (
               <motion.div
@@ -222,7 +164,7 @@ export function EventsPage() {
                     <div className="flex items-center gap-2 text-[#87928e] text-sm">
                       <Users className="w-4 h-4 text-[#32b377]" />
                       <span className="font-['Inter:Regular',sans-serif]">
-                        {event.available} / {event.total} available
+                        {event.available ?? 0} / {event.total ?? 0} available
                       </span>
                     </div>
                   </div>
@@ -232,7 +174,7 @@ export function EventsPage() {
                     <div className="h-1.5 bg-[rgba(38,43,42,0.5)] rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-gradient-to-r from-[#32b377] to-[#2a9865] rounded-full transition-all"
-                        style={{ width: `${(event.available / event.total) * 100}%` }}
+                        style={{ width: `${((event.available ?? 0) / (event.total ?? 1)) * 100}%` }}
                       />
                     </div>
                   </div>
@@ -242,17 +184,21 @@ export function EventsPage() {
                     <div>
                       <div className="text-[#87928e] text-xs mb-1 font-['Inter:Regular',sans-serif]">Starting at</div>
                       <div className="font-['Space_Grotesk:Bold',sans-serif] text-2xl text-[#32b377]">
-                        {event.price}
+                        {event.price} SOL
                       </div>
                     </div>
-                    <button className="bg-[#32b377] hover:bg-[#2a9865] transition-all px-6 py-3 rounded-xl font-['Inter:Medium',sans-serif] text-sm text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)]">
+                    <Link
+                      to={`/purchase/${event.id}`}
+                      className="inline-block bg-[#32b377] hover:bg-[#2a9865] transition-all px-6 py-3 rounded-xl font-['Inter:Medium',sans-serif] text-sm text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)]"
+                    >
                       Get Tickets
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </motion.div>
             ))}
           </div>
+          )}
         </div>
       </section>
       
