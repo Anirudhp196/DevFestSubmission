@@ -33,8 +33,18 @@ app.post('/api/events', (_req, res) => {
   res.status(501).json({ error: 'Not implemented: wire to Anchor create_event' });
 });
 
-app.post('/api/tickets/buy', (_req, res) => {
-  res.status(501).json({ error: 'Not implemented: wire to Anchor buy_ticket' });
+app.post('/api/tickets/buy', (req, res) => {
+  const { eventId, wallet, tier } = req.body ?? {};
+  if (!eventId || !wallet) {
+    return res.status(400).json({ error: 'Missing eventId or wallet' });
+  }
+
+  // TODO: Replace with Anchor buy_ticket transaction once program is deployed.
+  const signature = `mock-${eventId}-${Date.now()}`;
+  res.json({
+    signature,
+    message: `Queued buy_ticket for ${wallet}${tier ? ` (${tier})` : ''}`,
+  });
 });
 
 app.get('/api/listings', (_req, res) => {

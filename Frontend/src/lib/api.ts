@@ -5,6 +5,11 @@
 
 import type { Event } from '../types';
 
+interface BuyTicketResponse {
+  signature?: string;
+  message?: string;
+}
+
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 // Mock events used until backend is available (same as previous in-component mocks)
@@ -45,4 +50,23 @@ export async function getEvents(): Promise<Event[]> {
 /** Fetch a single event by id. Uses mock data when VITE_API_URL is not set. */
 export async function getEvent(id: string): Promise<Event | null> {
   return getEventFromApi(id);
+}
+
+export async function buyTicket(eventId: string, wallet: string, tier?: string): Promise<BuyTicketResponse> {
+  if (!API_BASE) {
+    return {
+      signature: `mock-${eventId}-${Date.now()}`,
+      message: 'Mock purchase complete',
+    };
+  }
+  const res = await fetch(`${API_BASE}/api/tickets/buy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ eventId, wallet, tier }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error?.error ?? 'Failed to buy ticket');
+  }
+  return res.json();
 }

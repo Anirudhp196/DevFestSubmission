@@ -19,16 +19,19 @@ import { motion } from 'motion/react';
 import { Navigation } from './Navigation';
 import { Calendar, MapPin, Shield, Check, Wallet, ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
-import { getEvent } from '../lib/api';
+import { buyTicket, getEvent } from '../lib/api';
 import { useWallet, shortenAddress } from '../contexts/WalletContext';
 import type { Event } from '../types';
 
 export function PurchaseTicketPage() {
   const { eventId } = useParams();
-  const { connected, publicKey, balance } = useWallet();
+  const { connected, publicKey, balance, connect } = useWallet();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!eventId) {
@@ -45,6 +48,26 @@ export function PurchaseTicketPage() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [eventId]);
+
+  const handleConfirmPurchase = async () => {
+    if (!eventId || !event) return;
+    if (!connected || !publicKey) {
+      setPurchaseError('Connect your wallet to continue.');
+      connect();
+      return;
+    }
+    setIsSubmitting(true);
+    setPurchaseError(null);
+    setPurchaseSuccess(null);
+    try {
+      const result = await buyTicket(String(eventId), publicKey, event.tier);
+      setPurchaseSuccess(result.signature ?? 'Purchase confirmed.');
+    } catch (err) {
+      setPurchaseError(err instanceof Error ? err.message : 'Purchase failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -255,9 +278,25 @@ export function PurchaseTicketPage() {
                   </span>
                 </div>
                 
-                <button className="w-full bg-[#32b377] hover:bg-[#2a9865] transition-all px-8 py-4 rounded-xl font-['Inter:Medium',sans-serif] text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)] mb-4">
-                  Confirm Purchase
+                <button
+                  onClick={handleConfirmPurchase}
+                  disabled={isSubmitting}
+                  className="w-full bg-[#32b377] hover:bg-[#2a9865] transition-all px-8 py-4 rounded-xl font-['Inter:Medium',sans-serif] text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)] mb-4 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? 'Processing…' : 'Confirm Purchase'}
                 </button>
+
+                {purchaseError && (
+                  <div className="mb-4 rounded-lg border border-[rgba(255,100,100,0.3)] bg-[rgba(255,100,100,0.1)] px-4 py-3 text-sm text-[#ff6464] font-['Inter:Medium',sans-serif]">
+                    {purchaseError}
+                  </div>
+                )}
+
+                {purchaseSuccess && (
+                  <div className="mb-4 rounded-lg border border-[rgba(50,179,119,0.3)] bg-[rgba(50,179,119,0.1)] px-4 py-3 text-sm text-[#32b377] font-['Inter:Medium',sans-serif]">
+                    Purchase submitted. Signature: {purchaseSuccess}
+                  </div>
+                )}
                 
                 <p className="text-xs text-center text-[#87928e] font-['Inter:Regular',sans-serif]">
                   By purchasing, you agree to our Terms of Service
