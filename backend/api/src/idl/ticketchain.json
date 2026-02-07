@@ -1,7 +1,7 @@
 {
   "version": "0.1.0",
   "name": "ticketchain",
-  "address": "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+  "address": "BxjzLBTGVQYHRAC5NBGvyn9r6V7GfVHWUExFcJbRoCts",
   "metadata": {
     "name": "ticketchain",
     "version": "0.1.0",
@@ -10,13 +10,14 @@
   "instructions": [
     {
       "name": "createEvent",
-      "discriminator": [207, 211, 80, 57, 65, 216, 67, 251],
+      "discriminator": [49, 219, 29, 203, 22, 98, 100, 87],
       "accounts": [
         { "name": "organizer", "writable": true, "signer": true },
         { "name": "event", "writable": true },
         { "name": "systemProgram", "address": "11111111111111111111111111111111" }
       ],
       "args": [
+        { "name": "nonce", "type": "u64" },
         { "name": "title", "type": "string" },
         { "name": "venue", "type": "string" },
         { "name": "dateTs", "type": "i64" },
@@ -27,7 +28,7 @@
     },
     {
       "name": "buyTicket",
-      "discriminator": [102, 6, 61, 18, 1, 218, 235, 234],
+      "discriminator": [11, 24, 17, 193, 168, 116, 164, 169],
       "accounts": [
         { "name": "buyer", "writable": true, "signer": true },
         { "name": "organizer", "writable": true },
@@ -44,17 +45,18 @@
   ],
   "accounts": [
     {
-      "name": "event",
-      "discriminator": [226, 4, 37, 138, 40, 250, 27, 159]
+      "name": "Event",
+      "discriminator": [125, 192, 125, 158, 9, 115, 152, 233]
     }
   ],
   "types": [
     {
-      "name": "event",
+      "name": "Event",
       "type": {
         "kind": "struct",
         "fields": [
           { "name": "organizer", "type": "pubkey" },
+          { "name": "nonce", "type": "u64" },
           { "name": "title", "type": "string" },
           { "name": "venue", "type": "string" },
           { "name": "dateTs", "type": "i64" },

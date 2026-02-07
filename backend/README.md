@@ -22,4 +22,13 @@ pnpm install
 pnpm dev
 ```
 
-Runs the relay server (default port 3001). Until the Anchor program is deployed, event/ticket/listing endpoints may return mock data or 501.
+Runs the relay server (default port 3001).
+
+## Anchor wiring
+
+The API builds **unsigned** transactions for the TicketChain program and returns them as base64. The frontend signs and submits.
+
+- **POST /api/tickets/buy** – If the request includes an on-chain event (via `eventPubkey` or an `eventId` that was registered when creating an event), the API returns `{ transaction: "<base64>" }`. The frontend signs with the wallet and submits. Otherwise returns a mock success.
+- **POST /api/events** – Body: `organizerPubkey`, `eventAccountPubkey` (new keypair pubkey), `title`, `venue`, `dateTs`, `tierName`, `priceLamports`, `supply`. Returns `{ transaction, eventPubkey, eventId }` for the organizer to sign and submit.
+
+Set **SOLANA_RPC_URL** (default: devnet) if needed. After running `anchor build` in `program/`, copy `program/target/idl/ticketchain.json` to `api/src/idl/ticketchain.json` so the API uses the correct IDL and program id.

@@ -8,7 +8,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
-import * as anchor from '@coral-xyz/anchor';
+import anchor from '@coral-xyz/anchor';
+const { BN } = anchor;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const idl = JSON.parse(readFileSync(join(__dirname, 'idl', 'ticketchain.json'), 'utf8'));
@@ -46,6 +47,8 @@ async function fetchEvent(connection, eventPubkey) {
   const discriminator = data.slice(0, 8);
   const organizer = new PublicKey(data.slice(8, 40));
   let offset = 40;
+  // skip nonce (u64 = 8 bytes)
+  offset += 8;
   const titleLen = data.readUInt32LE(offset);
   offset += 4;
   const title = data.slice(offset, offset + titleLen).toString('utf8');
@@ -121,31 +124,47 @@ export async function buildBuyTicketTransaction(eventPubkey, buyerPubkey) {
 }
 
 /**
- * Build unsigned create_event transaction. eventAccountPubkey = new keypair's pubkey (client generates).
+ * Build create_event transaction using PDA for event account.
+ * Only the organizer wallet needs to sign — no extra keypair.
  */
-export async function buildCreateEventTransaction(organizerPubkey, eventAccountPubkey, args) {
+export async function buildCreateEventTransaction(organizerPubkey, args) {
   const connection = getConnection();
   const program = getProgram(connection);
+  const organizerPk = new PublicKey(organizerPubkey);
+
+  // Generate a random nonce for PDA uniqueness
+  const nonce = new BN(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+  const nonceBuf = nonce.toArrayLike(Buffer, 'le', 8);
+
+  // Derive the event PDA: seeds = ["event", organizer, nonce_le_bytes]
+  const [eventPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from('event'), organizerPk.toBuffer(), nonceBuf],
+    PROGRAM_ID
+  );
 
   const tx = await program.methods
     .createEvent(
+      nonce,
       args.title,
       args.venue,
-      new anchor.BN(args.dateTs),
+      new BN(args.dateTs),
       args.tierName,
-      new anchor.BN(args.priceLamports),
+      new BN(args.priceLamports),
       args.supply
     )
     .accounts({
-      organizer: new PublicKey(organizerPubkey),
-      event: new PublicKey(eventAccountPubkey),
+      organizer: organizerPk,
+      event: eventPda,
       systemProgram: SYSTEM_PROGRAM_ID,
     })
     .transaction();
 
   tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-  tx.feePayer = new PublicKey(organizerPubkey);
+  tx.feePayer = organizerPk;
 
   const serialized = tx.serialize({ requireAllSignatures: false });
-  return serialized.toString('base64');
+  return {
+    transaction: serialized.toString('base64'),
+    eventPubkey: eventPda.toBase58(),
+  };
 }

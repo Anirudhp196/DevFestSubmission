@@ -4,15 +4,17 @@ use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface, mint_to, MintTo};
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("BxjzLBTGVQYHRAC5NBGvyn9r6V7GfVHWUExFcJbRoCts");
 
 #[program]
 pub mod ticketchain {
     use super::*;
 
-    /// Create a new event. Organizer passes a new keypair for the event account.
+    /// Create a new event. The event account is a PDA derived from organizer + nonce.
+    /// The organizer is the only signer required.
     pub fn create_event(
         ctx: Context<CreateEvent>,
+        nonce: u64,
         title: String,
         venue: String,
         date_ts: i64,
@@ -27,6 +29,7 @@ pub mod ticketchain {
 
         let event = &mut ctx.accounts.event;
         event.organizer = ctx.accounts.organizer.key();
+        event.nonce = nonce;
         event.title = title;
         event.venue = venue;
         event.date_ts = date_ts;
@@ -93,6 +96,7 @@ pub mod ticketchain {
 #[account]
 pub struct Event {
     pub organizer: Pubkey,
+    pub nonce: u64,
     pub title: String,
     pub venue: String,
     pub date_ts: i64,
@@ -103,6 +107,7 @@ pub struct Event {
 }
 
 #[derive(Accounts)]
+#[instruction(nonce: u64)]
 pub struct CreateEvent<'info> {
     #[account(mut)]
     pub organizer: Signer<'info>,
@@ -110,7 +115,10 @@ pub struct CreateEvent<'info> {
     #[account(
         init,
         payer = organizer,
-        space = 8 + 32 + 64 + 64 + 8 + 32 + 8 + 4 + 4
+        // 8 discriminator + 32 organizer + 8 nonce + (4+64) title + (4+64) venue + 8 date_ts + (4+32) tier_name + 8 price_lamports + 4 supply + 4 sold
+        space = 8 + 32 + 8 + 68 + 68 + 8 + 36 + 8 + 4 + 4,
+        seeds = [b"event", organizer.key().as_ref(), &nonce.to_le_bytes()],
+        bump
     )]
     pub event: Account<'info, Event>,
 

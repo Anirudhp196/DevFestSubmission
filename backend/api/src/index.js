@@ -17,40 +17,75 @@ app.use(express.json());
 // eventId (from our API) -> on-chain Event account pubkey (set when event is created via create_event)
 const eventIdToPubkey = new Map();
 
-// Mock events (match Frontend shape; merge with any on-chain event ids we know)
+// On-chain events created through the API (appended by POST /api/events after signing)
+const onChainEvents = [];
+let nextOnChainId = 100; // start IDs at 100 to avoid collision with mocks
+
+// Mock events (match Frontend shape)
 const MOCK_EVENTS = [
   { id: 1, title: 'Synthwave Sunset Festival', artist: 'Neon Dreams', date: 'March 15, 2026', location: 'Los Angeles, CA', price: 0.5, available: 234, total: 500, status: 'On Sale', loyaltyRequired: null, type: 'Concert' },
   { id: 2, title: 'Lakers vs Warriors', artist: 'NBA', date: 'March 22, 2026', location: 'Los Angeles, CA', price: 0.8, available: 89, total: 300, status: 'Almost Sold Out', loyaltyRequired: null, type: 'Sports' },
 ];
 
+function getAllEvents() {
+  return [...MOCK_EVENTS, ...onChainEvents];
+}
+
 app.get('/api/events', (_req, res) => {
-  res.json(MOCK_EVENTS);
+  res.json(getAllEvents());
 });
 
 app.get('/api/events/:id', (req, res) => {
-  const event = MOCK_EVENTS.find((e) => String(e.id) === req.params.id);
+  const all = getAllEvents();
+  const event = all.find((e) => String(e.id) === req.params.id);
   if (!event) return res.status(404).json({ error: 'Not found' });
   res.json({ ...event, tier: event.tier ?? 'General Admission' });
 });
 
-// Create event: build create_event tx. Body: { organizerPubkey, eventAccountPubkey, title, venue, dateTs, tierName, priceLamports, supply }
+// Create event: build create_event tx. Body: { organizerPubkey, title, venue, dateTs, tierName, priceLamports, supply }
+// Event keypair is generated server-side and pre-signed; frontend only signs for organizer wallet.
 app.post('/api/events', async (req, res) => {
-  const { organizerPubkey, eventAccountPubkey, title, venue, dateTs, tierName, priceLamports, supply } = req.body ?? {};
-  if (!organizerPubkey || !eventAccountPubkey || !title || !venue || priceLamports == null || !supply) {
-    return res.status(400).json({ error: 'Missing required fields: organizerPubkey, eventAccountPubkey, title, venue, dateTs, tierName, priceLamports, supply' });
+  const { organizerPubkey, title, venue, dateTs, tierName, priceLamports, supply } = req.body ?? {};
+  if (!organizerPubkey || !title || !venue || priceLamports == null || !supply) {
+    return res.status(400).json({ error: 'Missing required fields: organizerPubkey, title, venue, dateTs, tierName, priceLamports, supply' });
   }
   try {
-    const transaction = await buildCreateEventTransaction(organizerPubkey, eventAccountPubkey, {
+    const supplyNum = Number(supply);
+    const priceLamportsNum = Number(priceLamports);
+    const dateTsNum = dateTs ?? Math.floor(Date.now() / 1000);
+    const tier = tierName ?? 'General Admission';
+
+    const { transaction, eventPubkey } = await buildCreateEventTransaction(organizerPubkey, {
       title,
       venue,
-      dateTs: dateTs ?? Math.floor(Date.now() / 1000),
-      tierName: tierName ?? 'General Admission',
-      priceLamports: Number(priceLamports),
-      supply: Number(supply),
+      dateTs: dateTsNum,
+      tierName: tier,
+      priceLamports: priceLamportsNum,
+      supply: supplyNum,
     });
-    const nextId = MOCK_EVENTS.length + eventIdToPubkey.size + 1;
-    eventIdToPubkey.set(String(nextId), eventAccountPubkey);
-    res.json({ transaction, eventPubkey: eventAccountPubkey, eventId: nextId });
+
+    const eventId = nextOnChainId++;
+    eventIdToPubkey.set(String(eventId), eventPubkey);
+
+    // Add to in-memory events list so it appears in GET /api/events
+    const dateStr = new Date(dateTsNum * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    onChainEvents.push({
+      id: eventId,
+      title,
+      artist: 'On-chain Event',
+      date: dateStr,
+      location: venue,
+      price: priceLamportsNum / 1e9,
+      available: supplyNum,
+      total: supplyNum,
+      status: 'On Sale',
+      loyaltyRequired: null,
+      type: 'Concert',
+      tier,
+      eventPubkey,
+    });
+
+    res.json({ transaction, eventPubkey, eventId });
   } catch (e) {
     console.error('create_event build failed', e);
     res.status(500).json({ error: e.message ?? 'Failed to build create_event transaction' });
@@ -61,7 +96,12 @@ app.post('/api/events', async (req, res) => {
 app.post('/api/tickets/buy', async (req, res) => {
   const { eventId, eventPubkey, wallet, tier } = req.body ?? {};
   if (!wallet) return res.status(400).json({ error: 'Missing wallet' });
-  const eventPk = eventPubkey ?? (eventId != null ? eventIdToPubkey.get(String(eventId)) : null);
+  // Look up on-chain pubkey: from body, from id->pubkey map, or from the event object itself
+  let eventPk = eventPubkey ?? (eventId != null ? eventIdToPubkey.get(String(eventId)) : null);
+  if (!eventPk && eventId != null) {
+    const ev = onChainEvents.find((e) => String(e.id) === String(eventId));
+    if (ev?.eventPubkey) eventPk = ev.eventPubkey;
+  }
   if (eventPk) {
     try {
       const transaction = await buildBuyTicketTransaction(eventPk, wallet);

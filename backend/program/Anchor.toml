@@ -2,11 +2,14 @@
 seeds = false
 skip-lint = false
 
+[toolchain]
+anchor_version = "0.30.1"
+
 [programs.localnet]
-ticketchain = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+ticketchain = "BxjzLBTGVQYHRAC5NBGvyn9r6V7GfVHWUExFcJbRoCts"
 
 [programs.devnet]
-ticketchain = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+ticketchain = "BxjzLBTGVQYHRAC5NBGvyn9r6V7GfVHWUExFcJbRoCts"
 
 [registry]
 url = "https://api.apr.dev"

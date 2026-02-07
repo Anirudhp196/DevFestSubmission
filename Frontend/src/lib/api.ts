@@ -97,6 +97,41 @@ export async function getEvent(id: string): Promise<Event | null> {
   return getEventFromApi(id);
 }
 
+export interface CreateEventArgs {
+  organizerPubkey: string;
+  eventAccountPubkey: string;
+  title: string;
+  venue: string;
+  dateTs: number;
+  tierName: string;
+  priceLamports: number;
+  supply: number;
+}
+
+export interface CreateEventResponse {
+  transaction?: string;
+  eventPubkey?: string;
+  eventSecretKey?: number[];
+  eventId?: number;
+  message?: string;
+}
+
+export async function createEvent(args: CreateEventArgs): Promise<CreateEventResponse> {
+  if (!API_BASE) {
+    return { message: 'Mock: event created (no API)', eventId: 999 };
+  }
+  const res = await apiFetch('/api/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(args),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error?.error ?? 'Failed to create event');
+  }
+  return res.json();
+}
+
 export async function buyTicket(eventId: string, wallet: string, tier?: string): Promise<BuyTicketResponse> {
   if (!API_BASE) {
     return {

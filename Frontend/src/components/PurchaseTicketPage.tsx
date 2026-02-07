@@ -28,7 +28,7 @@ import type { Event } from '../types';
 export function PurchaseTicketPage() {
   const { eventId } = useParams();
   const { connection } = useConnection();
-  const { publicKey: walletPublicKey } = useSolanaWallet();
+  const { wallet } = useSolanaWallet();
   const { connected, publicKey, balance, connect } = useWallet();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,17 +60,16 @@ export function PurchaseTicketPage() {
       connect();
       return;
     }
-    const adapter = walletPublicKey ? (useSolanaWallet as () => { wallet: { adapter: { signTransaction: (tx: Transaction) => Promise<Transaction> } } })() : null;
     setIsSubmitting(true);
     setPurchaseError(null);
     setPurchaseSuccess(null);
     try {
       const result = await buyTicket(String(eventId), publicKey, event.tier);
       if (result.transaction) {
-        const wallet = (useSolanaWallet as () => { wallet: { adapter: { signTransaction: (tx: Transaction) => Promise<Transaction> } } })();
-        if (!wallet?.wallet?.adapter) throw new Error('Wallet not ready to sign');
-        const tx = Transaction.from(Buffer.from(result.transaction, 'base64'));
-        const signed = await wallet.wallet.adapter.signTransaction(tx);
+        if (!wallet?.adapter) throw new Error('Wallet not ready to sign');
+        const txBytes = Uint8Array.from(atob(result.transaction), (c) => c.charCodeAt(0));
+        const tx = Transaction.from(txBytes);
+        const signed = await wallet.adapter.signTransaction(tx);
         const sig = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false });
         await connection.confirmTransaction(sig, 'confirmed');
         setPurchaseSuccess(`Purchase submitted. Signature: ${sig}`);
