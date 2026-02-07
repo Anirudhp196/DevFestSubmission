@@ -71,16 +71,20 @@ export function CreateEventPage() {
       });
 
       if (result.transaction) {
-        if (!wallet?.adapter) throw new Error('Wallet not ready to sign');
+        const adapter = wallet?.adapter;
+        if (!adapter || !('signTransaction' in adapter)) throw new Error('Wallet not ready to sign');
         const txBytes = Uint8Array.from(atob(result.transaction), (c) => c.charCodeAt(0));
         const tx = Transaction.from(txBytes);
 
         // Event account is a PDA — only the organizer wallet needs to sign
-        const signed = await wallet.adapter.signTransaction(tx);
+        const signed = await adapter.signTransaction(tx);
         const sig = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false });
         await connection.confirmTransaction(sig, 'confirmed');
 
-        setSuccess(`Event created on-chain! ID: ${result.eventId ?? '?'}, Signature: ${sig}`);
+        setSuccess('Event created on-chain. Redirecting to Manage Events…');
+        setTimeout(() => {
+          navigate('/manage-events');
+        }, 800);
       } else {
         setSuccess(result.message ?? 'Event created (mock).');
       }

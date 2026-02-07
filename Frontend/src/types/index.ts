@@ -17,6 +17,8 @@ export interface Event {
   image?: string;
   type?: string;
   tier?: string; // e.g. "General Admission" for purchase flow
+  organizerPubkey?: string;
+  eventPubkey?: string;
 }
 
 export interface Ticket {

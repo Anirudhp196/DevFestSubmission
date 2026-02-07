@@ -106,11 +106,7 @@ export function EventsPage() {
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 className="bg-[#131615] border border-[#262b2a] rounded-2xl overflow-hidden hover:border-[#32b377] transition-all group"
               >
-                <Link
-                  to={`/purchase/${event.id}`}
-                  className="block cursor-pointer"
-                  style={{ textDecoration: 'none', color: 'inherit' }}
-                >
+                <div className="block">
                 {/* Event Image - Using unsplash for real concert photos */}
                 <div className="relative h-48 bg-gradient-to-br from-[#32b377] to-[#1a6a4a] overflow-hidden">
                   <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all" />
@@ -191,12 +187,23 @@ export function EventsPage() {
                         {event.price} SOL
                       </div>
                     </div>
-                    <span className="inline-block bg-[#32b377] group-hover:bg-[#2a9865] transition-all px-6 py-3 rounded-xl font-['Inter:Medium',sans-serif] text-sm text-[#090b0b] shadow-lg">
-                      Get Tickets
-                    </span>
+                    <div className="flex flex-col items-end gap-2">
+                      <Link
+                        to={`/purchase/${event.id}`}
+                        className="inline-block bg-[#32b377] hover:bg-[#2a9865] transition-all px-6 py-3 rounded-xl font-['Inter:Medium',sans-serif] text-sm text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)]"
+                      >
+                        Get Tickets
+                      </Link>
+                      <Link
+                        to={`/events/${event.id}/attendees`}
+                        className="text-xs text-[#87928e] hover:text-[#32b377] transition-colors"
+                      >
+                        View attendees
+                      </Link>
+                    </div>
                   </div>
                 </div>
-                </Link>
+                </div>
               </motion.div>
             ))}
           </div>

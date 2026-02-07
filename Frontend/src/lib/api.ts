@@ -3,7 +3,7 @@
  * Replace mock implementation with fetch(API_BASE + path) when backend is available.
  */
 
-import type { Event, Listing } from '../types';
+import type { Event, Listing, Ticket } from '../types';
 
 export interface BuyTicketResponse {
   signature?: string;
@@ -148,5 +148,46 @@ export async function buyTicket(eventId: string, wallet: string, tier?: string):
     const error = await res.json().catch(() => ({}));
     throw new Error(error?.error ?? 'Failed to buy ticket');
   }
+  return res.json();
+}
+
+export async function confirmTicketPurchase(eventId: string, wallet: string, signature: string): Promise<{ ticket: Ticket }> {
+  if (!API_BASE) {
+    return {
+      ticket: {
+        id: `mock-${Date.now()}`,
+        event: 'Mock Event',
+        artist: 'Mock Artist',
+        date: 'TBD',
+        tier: 'General Admission',
+        purchasePrice: 0,
+        suggestedPrice: 0,
+        eventId,
+      },
+    };
+  }
+  const res = await apiFetch('/api/tickets/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ eventId, wallet, signature }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error?.error ?? 'Failed to confirm ticket purchase');
+  }
+  return res.json();
+}
+
+export async function getMyTickets(wallet: string): Promise<Ticket[]> {
+  if (!API_BASE) return [];
+  const res = await apiFetch(`/api/tickets?wallet=${encodeURIComponent(wallet)}`);
+  if (!res.ok) throw new Error('Failed to fetch tickets');
+  return res.json();
+}
+
+export async function getEventAttendees(eventId: string): Promise<{ attendees: { wallet: string; tickets: number }[] }> {
+  if (!API_BASE) return { attendees: [] };
+  const res = await apiFetch(`/api/events/${eventId}/attendees`);
+  if (!res.ok) throw new Error('Failed to fetch attendees');
   return res.json();
 }

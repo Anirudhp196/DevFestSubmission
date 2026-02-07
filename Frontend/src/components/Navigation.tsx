@@ -49,6 +49,22 @@ export function Navigation() {
             Marketplace
           </Link>
           <Link
+            to="/my-tickets"
+            className={`font-['Inter:Medium',sans-serif] text-sm transition-colors ${
+              isActive('/my-tickets') ? 'text-[#32b377]' : 'text-[#87928e] hover:text-[#fafaf9]'
+            }`}
+          >
+            My Tickets
+          </Link>
+          <Link
+            to="/manage-events"
+            className={`font-['Inter:Medium',sans-serif] text-sm transition-colors ${
+              isActive('/manage-events') ? 'text-[#32b377]' : 'text-[#87928e] hover:text-[#fafaf9]'
+            }`}
+          >
+            Manage Events
+          </Link>
+          <Link
             to="/about"
             className={`font-['Inter:Medium',sans-serif] text-sm transition-colors ${
               isActive('/about') ? 'text-[#32b377]' : 'text-[#87928e] hover:text-[#fafaf9]'

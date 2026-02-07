@@ -21,7 +21,7 @@ import { Calendar, MapPin, Shield, Check, Wallet, ArrowLeft } from 'lucide-react
 import { Link, useParams } from 'react-router-dom';
 import { Transaction } from '@solana/web3.js';
 import { useWallet as useSolanaWallet, useConnection } from '@solana/wallet-adapter-react';
-import { buyTicket, getEvent } from '../lib/api';
+import { buyTicket, confirmTicketPurchase, getEvent } from '../lib/api';
 import { useWallet, shortenAddress } from '../contexts/WalletContext';
 import type { Event } from '../types';
 
@@ -66,15 +66,17 @@ export function PurchaseTicketPage() {
     try {
       const result = await buyTicket(String(eventId), publicKey, event.tier);
       if (result.transaction) {
-        if (!wallet?.adapter) throw new Error('Wallet not ready to sign');
+        const adapter = wallet?.adapter;
+        if (!adapter || !('signTransaction' in adapter)) throw new Error('Wallet not ready to sign');
         const txBytes = Uint8Array.from(atob(result.transaction), (c) => c.charCodeAt(0));
         const tx = Transaction.from(txBytes);
-        const signed = await wallet.adapter.signTransaction(tx);
+        const signed = await adapter.signTransaction(tx);
         const sig = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false });
         await connection.confirmTransaction(sig, 'confirmed');
-        setPurchaseSuccess(`Purchase submitted. Signature: ${sig}`);
+        await confirmTicketPurchase(String(eventId), publicKey, sig);
+        setPurchaseSuccess('Purchase submitted. Check your wallet for the NFT ticket.');
       } else {
-        setPurchaseSuccess(result.signature ?? result.message ?? 'Purchase confirmed.');
+        setPurchaseSuccess(result.message ?? 'Purchase submitted.');
       }
     } catch (err) {
       setPurchaseError(err instanceof Error ? err.message : 'Purchase failed.');
@@ -308,7 +310,7 @@ export function PurchaseTicketPage() {
 
                 {purchaseSuccess && (
                   <div className="mb-4 rounded-lg border border-[rgba(50,179,119,0.3)] bg-[rgba(50,179,119,0.1)] px-4 py-3 text-sm text-[#32b377] font-['Inter:Medium',sans-serif]">
-                    Purchase submitted. Signature: {purchaseSuccess}
+                    {purchaseSuccess}
                   </div>
                 )}
                 

@@ -18,39 +18,43 @@ import { motion } from 'motion/react';
 import { Navigation } from './Navigation';
 import { Wallet, TrendingUp, Shield, DollarSign, ArrowLeft, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { getMyTickets } from '../lib/api';
+import { useWallet } from '../contexts/WalletContext';
+import type { Ticket } from '../types';
 
 export function ListTicketPage() {
+  const { connected, publicKey, connect } = useWallet();
+  const [ownedTickets, setOwnedTickets] = useState<Ticket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState(0);
   const [listingPrice, setListingPrice] = useState('0.55');
-  
-  // Mock owned tickets from user's wallet
-  const ownedTickets = [
-    {
-      id: 1,
-      event: "Synthwave Sunset Festival",
-      artist: "Neon Dreams",
-      date: "March 15, 2026",
-      tier: "General Admission",
-      purchasePrice: 0.5,
-      suggestedPrice: 0.55
-    },
-    {
-      id: 2,
-      event: "Jazz in the Park",
-      artist: "The Blue Notes Collective",
-      date: "March 22, 2026",
-      tier: "VIP",
-      purchasePrice: 0.3,
-      suggestedPrice: 0.32
-    }
-  ];
-  
+
   const ticket = ownedTickets[selectedTicket];
+  const hasTicket = Boolean(ticket);
   const price = parseFloat(listingPrice) || 0;
   const artistCut = price * 0.4;
   const sellerCut = price * 0.4;
   const platformCut = price * 0.2;
+
+  useEffect(() => {
+    if (!connected || !publicKey) return;
+    let cancelled = false;
+    getMyTickets(publicKey)
+      .then((data) => {
+        if (cancelled) return;
+        setOwnedTickets(data);
+        setSelectedTicket(0);
+        if (data[0]?.suggestedPrice != null) {
+          setListingPrice(String(data[0].suggestedPrice));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setOwnedTickets([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [connected, publicKey]);
 
   return (
     <div className="min-h-screen bg-[#090b0b] text-[#fafaf9]">
@@ -98,51 +102,72 @@ export function ListTicketPage() {
                   Your Tickets
                 </h2>
                 
-                <div className="space-y-4">
-                  {ownedTickets.map((t, index) => (
-                    <div
-                      key={t.id}
-                      onClick={() => setSelectedTicket(index)}
-                      className={`p-6 rounded-xl border-2 cursor-pointer transition-all ${
-                        selectedTicket === index
-                          ? 'border-[#32b377] bg-[rgba(50,179,119,0.05)]'
-                          : 'border-[#262b2a] hover:border-[#32b377]'
-                      }`}
+                {!connected ? (
+                  <div className="p-6 bg-[rgba(255,200,100,0.1)] border border-[rgba(255,200,100,0.3)] rounded-xl text-[#ffc864] font-['Inter:Medium',sans-serif]">
+                    Connect your wallet to load tickets.
+                    <button
+                      onClick={connect}
+                      className="ml-4 bg-[#32b377] hover:bg-[#2a9865] transition-all px-4 py-2 rounded-lg text-[#090b0b] text-sm"
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-['Space_Grotesk:Bold',sans-serif] text-lg mb-1">
-                            {t.event}
-                          </h3>
-                          <p className="text-[#87928e] text-sm mb-3 font-['Inter:Medium',sans-serif]">
-                            {t.artist} • {t.date}
-                          </p>
-                          <div className="flex items-center gap-4 text-sm">
-                            <span className="text-[#87928e] font-['Inter:Regular',sans-serif]">
-                              Tier: <span className="text-[#fafaf9]">{t.tier}</span>
-                            </span>
-                            <span className="text-[#87928e] font-['Inter:Regular',sans-serif]">
-                              Paid: <span className="text-[#fafaf9]">{t.purchasePrice} SOL</span>
-                            </span>
+                      Connect Wallet
+                    </button>
+                  </div>
+                ) : ownedTickets.length === 0 ? (
+                  <div className="p-6 bg-[#131615] border border-[#262b2a] rounded-2xl text-[#87928e] font-['Inter:Medium',sans-serif]">
+                    No tickets found for this wallet.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {ownedTickets.map((t, index) => (
+                      <div
+                        key={t.id}
+                        onClick={() => {
+                          setSelectedTicket(index);
+                          if (t.suggestedPrice != null) setListingPrice(String(t.suggestedPrice));
+                        }}
+                        className={`p-6 rounded-xl border-2 cursor-pointer transition-all ${
+                          selectedTicket === index
+                            ? 'border-[#32b377] bg-[rgba(50,179,119,0.05)]'
+                            : 'border-[#262b2a] hover:border-[#32b377]'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-['Space_Grotesk:Bold',sans-serif] text-lg mb-1">
+                              {t.event}
+                            </h3>
+                            <p className="text-[#87928e] text-sm mb-3 font-['Inter:Medium',sans-serif]">
+                              {t.artist} • {t.date}
+                            </p>
+                            <div className="flex items-center gap-4 text-sm">
+                              <span className="text-[#87928e] font-['Inter:Regular',sans-serif]">
+                                Tier: <span className="text-[#fafaf9]">{t.tier}</span>
+                              </span>
+                              <span className="text-[#87928e] font-['Inter:Regular',sans-serif]">
+                                Paid: <span className="text-[#fafaf9]">{t.purchasePrice} SOL</span>
+                              </span>
+                            </div>
                           </div>
+                          
+                          {selectedTicket === index && (
+                            <div className="w-6 h-6 bg-[#32b377] rounded-full flex items-center justify-center">
+                              <Check className="w-4 h-4 text-[#090b0b]" />
+                            </div>
+                          )}
                         </div>
-                        
-                        {selectedTicket === index && (
-                          <div className="w-6 h-6 bg-[#32b377] rounded-full flex items-center justify-center">
-                            <Check className="w-4 h-4 text-[#090b0b]" />
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
                 
-                <div className="mt-6 p-4 bg-[rgba(50,179,119,0.05)] border border-[rgba(50,179,119,0.2)] rounded-xl flex items-start gap-3">
-                  <Wallet className="w-5 h-5 text-[#32b377] shrink-0 mt-0.5" />
-                  <p className="text-sm text-[#87928e] font-['Inter:Regular',sans-serif]">
-                    Tickets loaded from your connected wallet: <span className="text-[#fafaf9] font-mono">9xQe...7b3K</span>
-                  </p>
-                </div>
+                {connected && publicKey && (
+                  <div className="mt-6 p-4 bg-[rgba(50,179,119,0.05)] border border-[rgba(50,179,119,0.2)] rounded-xl flex items-start gap-3">
+                    <Wallet className="w-5 h-5 text-[#32b377] shrink-0 mt-0.5" />
+                    <p className="text-sm text-[#87928e] font-['Inter:Regular',sans-serif]">
+                      Tickets loaded from your connected wallet: <span className="text-[#fafaf9] font-mono">{publicKey}</span>
+                    </p>
+                  </div>
+                )}
               </motion.div>
               
               {/* Set Price */}
@@ -166,6 +191,7 @@ export function ListTicketPage() {
                       step="0.01"
                       value={listingPrice}
                       onChange={(e) => setListingPrice(e.target.value)}
+                      disabled={!hasTicket}
                       className="w-full bg-[rgba(38,43,42,0.5)] border-2 border-[#32b377] rounded-xl px-6 py-4 text-3xl text-[#fafaf9] focus:border-[#32b377] focus:outline-none transition-colors font-['Space_Grotesk:Bold',sans-serif]"
                     />
                     <div className="absolute right-6 top-1/2 transform -translate-y-1/2 text-[#87928e] text-lg font-['Space_Grotesk:Bold',sans-serif]">
@@ -173,17 +199,23 @@ export function ListTicketPage() {
                     </div>
                   </div>
                   
-                  <div className="mt-3 flex items-center justify-between text-sm">
-                    <span className="text-[#87928e] font-['Inter:Regular',sans-serif]">
-                      Original price: {ticket.purchasePrice} SOL
-                    </span>
-                    <button
-                      onClick={() => setListingPrice(ticket.suggestedPrice.toString())}
-                      className="text-[#32b377] hover:text-[#2a9865] transition-colors font-['Inter:Medium',sans-serif]"
-                    >
-                      Use suggested: {ticket.suggestedPrice} SOL
-                    </button>
-                  </div>
+                  {hasTicket ? (
+                    <div className="mt-3 flex items-center justify-between text-sm">
+                      <span className="text-[#87928e] font-['Inter:Regular',sans-serif]">
+                        Original price: {ticket.purchasePrice} SOL
+                      </span>
+                      <button
+                        onClick={() => setListingPrice(ticket.suggestedPrice.toString())}
+                        className="text-[#32b377] hover:text-[#2a9865] transition-colors font-['Inter:Medium',sans-serif]"
+                      >
+                        Use suggested: {ticket.suggestedPrice} SOL
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-3 text-sm text-[#87928e]">
+                      Select a ticket to set pricing.
+                    </div>
+                  )}
                 </div>
                 
                 {/* Market Insight */}
@@ -193,8 +225,9 @@ export function ListTicketPage() {
                     <span className="text-sm font-['Inter:Medium',sans-serif]">Market Insight</span>
                   </div>
                   <p className="text-xs text-[#87928e] font-['Inter:Regular',sans-serif]">
-                    Similar tickets for this event are selling at an average of {ticket.suggestedPrice} SOL. 
-                    Pricing competitively increases your chance of a quick sale.
+                    {hasTicket
+                      ? `Similar tickets for this event are selling at an average of ${ticket.suggestedPrice} SOL. Pricing competitively increases your chance of a quick sale.`
+                      : 'Select a ticket to see market pricing.'}
                   </p>
                 </div>
               </motion.div>
@@ -281,12 +314,12 @@ export function ListTicketPage() {
                 <div className="space-y-4 mb-6 pb-6 border-b border-[#262b2a]">
                   <div>
                     <div className="text-xs text-[#87928e] mb-2 font-['Inter:Regular',sans-serif]">Event</div>
-                    <div className="font-['Inter:Medium',sans-serif]">{ticket.event}</div>
+                    <div className="font-['Inter:Medium',sans-serif]">{hasTicket ? ticket.event : '—'}</div>
                   </div>
                   
                   <div>
                     <div className="text-xs text-[#87928e] mb-2 font-['Inter:Regular',sans-serif]">Tier</div>
-                    <div className="font-['Inter:Medium',sans-serif]">{ticket.tier}</div>
+                    <div className="font-['Inter:Medium',sans-serif]">{hasTicket ? ticket.tier : '—'}</div>
                   </div>
                   
                   <div>
@@ -304,8 +337,11 @@ export function ListTicketPage() {
                   </div>
                 </div>
                 
-                <button className="w-full bg-[#32b377] hover:bg-[#2a9865] transition-all px-8 py-4 rounded-xl font-['Inter:Medium',sans-serif] text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)] mb-4">
-                  List Ticket
+                <button
+                  disabled={!hasTicket}
+                  className="w-full bg-[#32b377] hover:bg-[#2a9865] disabled:opacity-60 disabled:cursor-not-allowed transition-all px-8 py-4 rounded-xl font-['Inter:Medium',sans-serif] text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)] mb-4"
+                >
+                  {hasTicket ? 'List Ticket' : 'Select a Ticket'}
                 </button>
                 
                 <p className="text-xs text-center text-[#87928e] mb-6 font-['Inter:Regular',sans-serif]">

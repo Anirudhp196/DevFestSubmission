@@ -21,6 +21,9 @@ import { AboutPage } from './components/AboutPage';
 import { CreateEventPage } from './components/CreateEventPage';
 import { PurchaseTicketPage } from './components/PurchaseTicketPage';
 import { ListTicketPage } from './components/ListTicketPage';
+import { MyTicketsPage } from './components/MyTicketsPage';
+import { EventAttendeesPage } from './components/EventAttendeesPage';
+import { ManageEventsPage } from './components/ManageEventsPage';
 
 export default function App() {
   return (
@@ -42,12 +45,21 @@ export default function App() {
         
         {/* Artist flow - create new events */}
         <Route path="/create-event" element={<CreateEventPage />} />
+
+        {/* Artist flow - manage events */}
+        <Route path="/manage-events" element={<ManageEventsPage />} />
         
         {/* Purchase ticket flow */}
         <Route path="/purchase/:eventId" element={<PurchaseTicketPage />} />
+
+        {/* Attendees list for an event */}
+        <Route path="/events/:eventId/attendees" element={<EventAttendeesPage />} />
         
         {/* List tickets for resale */}
         <Route path="/list-ticket" element={<ListTicketPage />} />
+
+        {/* View owned tickets */}
+        <Route path="/my-tickets" element={<MyTicketsPage />} />
       </Routes>
         </Router>
       </WalletProvider>
