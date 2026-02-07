@@ -14,7 +14,7 @@ import { buildBuyTicketTransaction, buildCreateEventTransaction } from './solana
 const app = express();
 const PORT = process.env.PORT ?? 3001;
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_PATH = join(__dirname, 'data.json');
+const DATA_PATH = process.env.DATA_PATH ?? join(__dirname, 'data.json');
 
 app.use(cors());
 app.use(express.json());

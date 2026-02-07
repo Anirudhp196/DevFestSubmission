@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: ticketchain-api
+    env: node
+    rootDir: backend/api
+    plan: free
+    buildCommand: npm install
+    startCommand: node src/index.js
+    envVars:
+      - key: SOLANA_RPC_URL
+        value: https://api.devnet.solana.com
+      - key: DATA_PATH
+        value: /data/data.json
+    disk:
+      name: ticketchain-data
+      mountPath: /data
+      sizeGB: 1
+
+  - type: web
+    name: ticketchain-frontend
+    env: static
+    rootDir: Frontend
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://ticketchain-api.onrender.com
