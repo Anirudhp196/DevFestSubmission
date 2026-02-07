@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Navigation } from './Navigation';
 import { Calendar, MapPin, Users, Star, TrendingUp, Search, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -25,19 +25,43 @@ import type { Event } from '../types';
 
 export function EventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({ location: '', minAvailable: '', maxPrice: '' });
+  const [tempFilters, setTempFilters] = useState({ location: '', minAvailable: '', maxPrice: '' });
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
     getEvents()
-      .then((data) => { if (!cancelled) setEvents(data); })
+      .then((data) => { if (!cancelled) { setEvents(data); setAllEvents(data); } })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load events'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
+
+  // update filtered events when query/filters change
+  useEffect(() => {
+    const q = query.trim().toLowerCase();
+    const loc = filters.location.trim().toLowerCase();
+    const minAvail = filters.minAvailable ? Number(filters.minAvailable) : null;
+    const maxPrice = filters.maxPrice ? Number(filters.maxPrice) : null;
+
+    const filtered = allEvents.filter((e) => {
+      const inQuery = !q || [e.title, e.artist, e.location].some((s) => String(s).toLowerCase().includes(q));
+      if (!inQuery) return false;
+      if (loc && !String(e.location).toLowerCase().includes(loc)) return false;
+      if (minAvail != null && !Number.isNaN(minAvail) && (Number(e.available ?? 0) < minAvail)) return false;
+      if (maxPrice != null && !Number.isNaN(maxPrice) && (Number(e.price ?? 0) > maxPrice)) return false;
+      return true;
+    });
+
+    setEvents(filtered);
+  }, [query, filters, allEvents]);
 
   return (
     <div className="min-h-screen bg-[#090b0b] text-[#fafaf9]">
@@ -70,17 +94,50 @@ export function EventsPage() {
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#87928e]" />
               <input
                 type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search events, artists, venues..."
                 className="w-full bg-[rgba(38,43,42,0.5)] border border-[#262b2a] rounded-xl pl-12 pr-4 py-3.5 text-[#fafaf9] placeholder-[#87928e] focus:border-[#32b377] focus:outline-none transition-colors font-['Inter:Regular',sans-serif]"
               />
             </div>
-            <button className="flex items-center gap-2 bg-[rgba(38,43,42,0.5)] border border-[#262b2a] rounded-xl px-6 py-3.5 hover:border-[#32b377] transition-colors font-['Inter:Medium',sans-serif]">
+            <button onClick={() => setShowFilters(true)} className="flex items-center gap-2 bg-[rgba(38,43,42,0.5)] border border-[#262b2a] rounded-xl px-6 py-3.5 hover:border-[#32b377] transition-colors font-['Inter:Medium',sans-serif]">
               <Filter className="w-5 h-5" />
               Filters
             </button>
           </motion.div>
         </div>
       </section>
+
+      {/* Filters Modal */}
+      {showFilters && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowFilters(false)} />
+          <div className="relative w-full max-w-sm bg-[#090b0b] border border-[#16201f] rounded-xl p-4 z-10 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-['Space_Grotesk:Bold',sans-serif]">Filters</h3>
+              <button onClick={() => { setShowFilters(false); }} className="text-sm text-[#87928e]">Close</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-[#87928e] block mb-1">Location</label>
+                <input value={tempFilters.location} onChange={(e) => setTempFilters({ ...tempFilters, location: e.target.value })} placeholder="City, venue, etc." className="w-full bg-[#07100f] border border-[#16201f] rounded-lg px-3 py-2 text-[#fafaf9]" />
+              </div>
+              <div>
+                <label className="text-sm text-[#87928e] block mb-1">Minimum tickets available</label>
+                <input value={tempFilters.minAvailable} onChange={(e) => setTempFilters({ ...tempFilters, minAvailable: e.target.value })} type="number" min={0} placeholder="e.g. 10" className="w-full bg-[#07100f] border border-[#16201f] rounded-lg px-3 py-2 text-[#fafaf9]" />
+              </div>
+              <div>
+                <label className="text-sm text-[#87928e] block mb-1">Max price (SOL)</label>
+                <input value={tempFilters.maxPrice} onChange={(e) => setTempFilters({ ...tempFilters, maxPrice: e.target.value })} type="number" min={0} step="0.01" placeholder="e.g. 1.5" className="w-full bg-[#07100f] border border-[#16201f] rounded-lg px-3 py-2 text-[#fafaf9]" />
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2 justify-end">
+              <button onClick={() => { setTempFilters({ location: '', minAvailable: '', maxPrice: '' }); setFilters({ location: '', minAvailable: '', maxPrice: '' }); }} className="px-3 py-2 rounded-lg border border-[#16201f] text-[#87928e]">Reset</button>
+              <button onClick={() => { setFilters(tempFilters); setShowFilters(false); }} className="px-3 py-2 rounded-lg bg-[#32b377] text-[#090b0b]">Apply</button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Events Grid */}
       <section className="py-16 px-8">

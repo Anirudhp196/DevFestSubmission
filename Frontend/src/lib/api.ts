@@ -74,17 +74,25 @@ const MOCK_LISTINGS: Listing[] = [
   { id: 3, event: 'Ethereal Beats World Tour', artist: 'DJ Aurora', originalPrice: 0.8, currentPrice: 0.82, seller: '3f8e...1d6b', sellerRep: 'Gold', date: 'April 5, 2026', verified: true, priceChange: 2.5, listingAge: '1 day ago' },
   { id: 4, event: 'Indie Rock Underground', artist: 'The Echoes', originalPrice: 0.4, currentPrice: 0.41, seller: '6b2c...9f3e', sellerRep: 'Bronze', date: 'April 12, 2026', verified: true, priceChange: 2.5, listingAge: '3 hours ago' },
 ];
+// Frontend-local listings created during this session (takes precedence)
+const LOCAL_LISTINGS: Listing[] = [];
 
 async function getListingsFromApi(): Promise<Listing[]> {
   if (!API_BASE) return MOCK_LISTINGS;
-  const res = await apiFetch('/api/listings');
-  if (!res.ok) throw new Error('Failed to fetch listings');
-  return res.json();
+  try {
+    const res = await apiFetch('/api/listings');
+    if (!res.ok) throw new Error('Failed to fetch listings');
+    return res.json();
+  } catch (e) {
+    // fallback to mock listings when API is unavailable or errors
+    return MOCK_LISTINGS;
+  }
 }
 
 /** Fetch marketplace listings. Uses mock when VITE_API_URL is not set. */
 export async function getListings(): Promise<Listing[]> {
-  return getListingsFromApi();
+  const apiListings = await getListingsFromApi();
+  return [...LOCAL_LISTINGS, ...apiListings];
 }
 
 /** Fetch all events. Uses mock data when VITE_API_URL is not set. */
@@ -190,4 +198,36 @@ export async function getEventAttendees(eventId: string): Promise<{ attendees: {
   const res = await apiFetch(`/api/events/${eventId}/attendees`);
   if (!res.ok) throw new Error('Failed to fetch attendees');
   return res.json();
+}
+
+/** Create a marketplace listing. Falls back to in-memory mock when API not configured. */
+export async function createListing(listing: Omit<Listing, 'id' | 'listingAge'>): Promise<Listing> {
+  const newListing: Listing = {
+    ...listing,
+    id: Date.now(),
+    listingAge: 'Just now',
+  } as Listing;
+
+  if (!API_BASE) {
+    LOCAL_LISTINGS.unshift(newListing);
+    return newListing;
+  }
+
+  try {
+    const res = await apiFetch('/api/listings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(listing),
+    });
+    if (!res.ok) {
+      // if server rejects, fallback to local
+      LOCAL_LISTINGS.unshift(newListing);
+      return newListing;
+    }
+    const created = await res.json();
+    return created as Listing;
+  } catch (e) {
+    LOCAL_LISTINGS.unshift(newListing);
+    return newListing;
+  }
 }

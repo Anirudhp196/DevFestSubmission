@@ -7,7 +7,7 @@
       "date": "February 6, 2026",
       "location": "Uris Hall, Columbia University NY, NY",
       "price": 0.2,
-      "available": 9998,
+      "available": 9997,
       "total": 10000,
       "status": "On Sale",
       "loyaltyRequired": null,
@@ -43,10 +43,23 @@
       "wallet": "FfncPbnTcvBdEcj2c75WHeguQSTKLYKAVVffQmt47kqY",
       "signature": "4WxE6NeZeLko2JpoSgJ86PvLBPZpWwy4C83KEXQV12owwyvh8gFQR9wf7RCe16Rn7SSysSnxbHXs76DDEc3uhDBN",
       "purchasedAt": "2026-02-07T21:12:50.978Z"
+    },
+    {
+      "id": 3,
+      "eventId": 100,
+      "event": "DevFest 2026",
+      "artist": "On-chain Event",
+      "date": "February 6, 2026",
+      "tier": "General Admission",
+      "purchasePrice": 0.2,
+      "suggestedPrice": 0.22,
+      "wallet": "B1vDRTcm1hft6RAoPUXNRCpBBWFHi2zRt8rZCq2fFAHg",
+      "signature": "39imDX8tUvwDcMyUhw3quoQQYzioQGYv11Gy4sHEzSRvdbuJn1UKgtWFKAV3Nu2ntymeQbC6wwQ3e94AwUtJJWtJ",
+      "purchasedAt": "2026-02-07T21:41:52.694Z"
     }
   ],
   "nextOnChainId": 101,
-  "nextTicketId": 3,
+  "nextTicketId": 4,
   "eventIdToPubkeyEntries": [
     [
       "100",

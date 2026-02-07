@@ -14,12 +14,13 @@
  * - One-click listing with confirmation
  */
 
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Navigation } from './Navigation';
 import { Wallet, TrendingUp, Shield, DollarSign, ArrowLeft, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { getMyTickets } from '../lib/api';
+import { getMyTickets, createListing } from '../lib/api';
+import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import type { Ticket } from '../types';
 
@@ -55,6 +56,31 @@ export function ListTicketPage() {
       cancelled = true;
     };
   }, [connected, publicKey]);
+
+  const navigate = useNavigate();
+
+  async function handleListTicket() {
+    if (!hasTicket || !publicKey) return;
+    const currentPrice = Number(listingPrice) || 0;
+    const original = Number(ticket.purchasePrice) || 0;
+    const priceChange = original > 0 ? ((currentPrice - original) / original) * 100 : 0;
+    const seller = String(publicKey).slice(0, 6) + '...' + String(publicKey).slice(-4);
+
+    const newListing = await createListing({
+      event: ticket.event,
+      artist: ticket.artist,
+      originalPrice: original,
+      currentPrice,
+      seller,
+      sellerRep: 'Gold',
+      date: ticket.date,
+      verified: true,
+      priceChange: Math.round(priceChange * 100) / 100,
+    });
+
+    // navigate to marketplace and jump to listings section
+    navigate('/marketplace#listings');
+  }
 
   return (
     <div className="min-h-screen bg-[#090b0b] text-[#fafaf9]">
@@ -338,6 +364,7 @@ export function ListTicketPage() {
                 </div>
                 
                 <button
+                  onClick={handleListTicket}
                   disabled={!hasTicket}
                   className="w-full bg-[#32b377] hover:bg-[#2a9865] disabled:opacity-60 disabled:cursor-not-allowed transition-all px-8 py-4 rounded-xl font-['Inter:Medium',sans-serif] text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)] mb-4"
                 >

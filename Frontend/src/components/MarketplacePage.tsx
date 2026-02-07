@@ -13,8 +13,9 @@
  * - Highlight fairness vs traditional ticketing
  */
 
-import { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import { useEffect, useState, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Navigation } from './Navigation';
 import { TrendingUp, TrendingDown, Clock, Shield, Star, DollarSign, Users, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -25,6 +26,8 @@ export function MarketplacePage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const listingsRef = useRef<HTMLElement | null>(null);
+  const location = useLocation();
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +39,15 @@ export function MarketplacePage() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
+
+  // Scroll to listings if URL contains hash '#listings'
+  useEffect(() => {
+    if (!location || !location.hash) return;
+    if (location.hash === '#listings' && listingsRef.current) {
+      // allow UI to render then scroll
+      requestAnimationFrame(() => listingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+  }, [location, loading]);
 
   return (
     <div className="min-h-screen bg-[#090b0b] text-[#fafaf9]">
@@ -158,7 +170,7 @@ export function MarketplacePage() {
       </section>
       
       {/* Marketplace Listings */}
-      <section className="py-16 px-8">
+      <section id="listings" ref={(el) => (listingsRef.current = el)} className="py-16 px-8">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -316,6 +328,9 @@ export function MarketplacePage() {
           )}
         </div>
       </section>
+
+      {/* Scroll to listings when hash present */}
+      <script>{/* placeholder to keep TSX valid; scroll handled in effect below */}</script>
       
       {/* Seller CTA */}
       <section className="border-t border-[#262b2a] py-16 px-8">

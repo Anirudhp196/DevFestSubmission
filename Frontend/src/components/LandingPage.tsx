@@ -15,7 +15,7 @@
  * - Dark theme optimized for Web3 aesthetic
  */
 
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Navigation } from './Navigation';
 import svgPaths from '../imports/svg-y53m400yen';
 import { Link } from 'react-router-dom';

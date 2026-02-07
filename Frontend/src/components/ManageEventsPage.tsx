@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Navigation } from './Navigation';
 import { Calendar, MapPin, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';

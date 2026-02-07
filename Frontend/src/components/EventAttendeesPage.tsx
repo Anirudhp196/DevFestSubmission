@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Navigation } from './Navigation';
 import { Users, ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
