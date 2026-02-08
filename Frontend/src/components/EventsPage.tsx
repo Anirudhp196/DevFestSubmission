@@ -35,6 +35,11 @@ export function EventsPage() {
   const [filters, setFilters] = useState({ location: '', minAvailable: '', maxPrice: '' });
   const [tempFilters, setTempFilters] = useState({ location: '', minAvailable: '', maxPrice: '' });
 
+  const parseEventDate = (dateString: string) => {
+    const parsed = new Date(dateString);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -52,17 +57,34 @@ export function EventsPage() {
     const loc = filters.location.trim().toLowerCase();
     const minAvail = filters.minAvailable ? Number(filters.minAvailable) : null;
     const maxPrice = filters.maxPrice ? Number(filters.maxPrice) : null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     const filtered = allEvents.filter((e) => {
+      const eventDate = parseEventDate(e.date);
+      if (eventDate && eventDate < today) return false;
       const inQuery = !q || [e.title, e.organizer, e.location].some((s) => String(s).toLowerCase().includes(q));
       if (!inQuery) return false;
       if (loc && !String(e.location).toLowerCase().includes(loc)) return false;
-      if (minAvail != null && !Number.isNaN(minAvail) && (Number(e.available ?? 0) < minAvail)) return false;
+      if (minAvail != null && !Number.isNaN(minAvail)) {
+        const available = e.available ?? e.total ?? null;
+        if (available == null) return false;
+        if (Number(available) < minAvail) return false;
+      }
       if (maxPrice != null && !Number.isNaN(maxPrice) && (Number(e.price ?? 0) > maxPrice)) return false;
       return true;
     });
 
-    setEvents(filtered);
+    const sorted = filtered.sort((a, b) => {
+      const dateA = parseEventDate(a.date);
+      const dateB = parseEventDate(b.date);
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    setEvents(sorted);
   }, [query, filters, allEvents]);
 
   return (
@@ -102,44 +124,84 @@ export function EventsPage() {
                 className="w-full bg-[rgba(38,43,42,0.5)] border border-[#262b2a] rounded-xl pl-12 pr-4 py-3.5 text-[#fafaf9] placeholder-[#87928e] focus:border-[#32b377] focus:outline-none transition-colors font-['Inter:Regular',sans-serif]"
               />
             </div>
-            <button onClick={() => setShowFilters(true)} className="flex items-center gap-2 bg-[rgba(38,43,42,0.5)] border border-[#262b2a] rounded-xl px-6 py-3.5 hover:border-[#32b377] transition-colors font-['Inter:Medium',sans-serif]">
-              <Filter className="w-5 h-5" />
-              Filters
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setTempFilters(filters);
+                  setShowFilters((prev) => !prev);
+                }}
+                className="flex items-center gap-2 bg-[rgba(38,43,42,0.5)] border border-[#262b2a] rounded-xl px-6 py-3.5 hover:border-[#32b377] transition-colors font-['Inter:Medium',sans-serif]"
+              >
+                <Filter className="w-5 h-5" />
+                Filters
+              </button>
+              {showFilters && (
+                <div className="absolute right-0 mt-3 w-80 bg-[#090b0b] border border-[#16201f] rounded-xl p-4 z-50 shadow-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-base font-['Space_Grotesk:Bold',sans-serif]">Filters</h3>
+                    <button onClick={() => { setShowFilters(false); }} className="text-sm text-[#87928e]">Close</button>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm text-[#87928e] block mb-1">Location</label>
+                      <input
+                        value={tempFilters.location}
+                        onChange={(e) => setTempFilters({ ...tempFilters, location: e.target.value })}
+                        placeholder="City, venue, etc."
+                        className="w-full bg-[#07100f] border border-[#16201f] rounded-lg px-3 py-2 text-[#fafaf9]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-[#87928e] block mb-1">Minimum tickets available</label>
+                      <input
+                        value={tempFilters.minAvailable}
+                        onChange={(e) => setTempFilters({ ...tempFilters, minAvailable: e.target.value })}
+                        type="number"
+                        min={0}
+                        inputMode="numeric"
+                        placeholder="e.g. 10"
+                        className="w-full bg-[#07100f] border border-[#16201f] rounded-lg px-3 py-2 text-[#fafaf9]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-[#87928e] block mb-1">Max price (SOL)</label>
+                      <input
+                        value={tempFilters.maxPrice}
+                        onChange={(e) => setTempFilters({ ...tempFilters, maxPrice: e.target.value })}
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        placeholder="e.g. 1.5"
+                        className="w-full bg-[#07100f] border border-[#16201f] rounded-lg px-3 py-2 text-[#fafaf9]"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex gap-2 justify-end">
+                    <button
+                      onClick={() => {
+                        setTempFilters({ location: '', minAvailable: '', maxPrice: '' });
+                        setFilters({ location: '', minAvailable: '', maxPrice: '' });
+                      }}
+                      className="px-3 py-2 rounded-lg border border-[#16201f] text-[#87928e]"
+                    >
+                      Reset
+                    </button>
+                    <button
+                      onClick={() => {
+                        setFilters(tempFilters);
+                        setShowFilters(false);
+                      }}
+                      className="px-3 py-2 rounded-lg bg-[#32b377] text-[#090b0b]"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </motion.div>
         </div>
       </section>
-
-      {/* Filters Modal */}
-      {showFilters && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowFilters(false)} />
-          <div className="relative w-full max-w-sm bg-[#090b0b] border border-[#16201f] rounded-xl p-4 z-10 shadow-lg">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-base font-['Space_Grotesk:Bold',sans-serif]">Filters</h3>
-              <button onClick={() => { setShowFilters(false); }} className="text-sm text-[#87928e]">Close</button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm text-[#87928e] block mb-1">Location</label>
-                <input value={tempFilters.location} onChange={(e) => setTempFilters({ ...tempFilters, location: e.target.value })} placeholder="City, venue, etc." className="w-full bg-[#07100f] border border-[#16201f] rounded-lg px-3 py-2 text-[#fafaf9]" />
-              </div>
-              <div>
-                <label className="text-sm text-[#87928e] block mb-1">Minimum tickets available</label>
-                <input value={tempFilters.minAvailable} onChange={(e) => setTempFilters({ ...tempFilters, minAvailable: e.target.value })} type="number" min={0} placeholder="e.g. 10" className="w-full bg-[#07100f] border border-[#16201f] rounded-lg px-3 py-2 text-[#fafaf9]" />
-              </div>
-              <div>
-                <label className="text-sm text-[#87928e] block mb-1">Max price (SOL)</label>
-                <input value={tempFilters.maxPrice} onChange={(e) => setTempFilters({ ...tempFilters, maxPrice: e.target.value })} type="number" min={0} step="0.01" placeholder="e.g. 1.5" className="w-full bg-[#07100f] border border-[#16201f] rounded-lg px-3 py-2 text-[#fafaf9]" />
-              </div>
-            </div>
-            <div className="mt-4 flex gap-2 justify-end">
-              <button onClick={() => { setTempFilters({ location: '', minAvailable: '', maxPrice: '' }); setFilters({ location: '', minAvailable: '', maxPrice: '' }); }} className="px-3 py-2 rounded-lg border border-[#16201f] text-[#87928e]">Reset</button>
-              <button onClick={() => { setFilters(tempFilters); setShowFilters(false); }} className="px-3 py-2 rounded-lg bg-[#32b377] text-[#090b0b]">Apply</button>
-            </div>
-          </div>
-        </div>
-      )}
       
       {/* Events Grid */}
       <section className="py-16 px-8">
@@ -167,7 +229,7 @@ export function EventsPage() {
               >
                 <div className="block">
                 {/* Event Image - Using unsplash for real event photos */}
-                <div className="relative h-48 bg-gradient-to-br from-[#32b377] to-[#1a6a4a] overflow-hidden">
+                <div className="relative h-48 bg-linear-to-br from-[#32b377] to-[#1a6a4a] overflow-hidden">
                   <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all" />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
@@ -244,7 +306,7 @@ export function EventsPage() {
                   <div className="mb-5">
                     <div className="h-1.5 bg-[rgba(38,43,42,0.5)] rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-gradient-to-r from-[#32b377] to-[#2a9865] rounded-full transition-all"
+                        className="h-full bg-linear-to-r from-[#32b377] to-[#2a9865] rounded-full transition-all"
                         style={{ width: `${((event.available ?? 0) / (event.total ?? 1)) * 100}%` }}
                       />
                     </div>
