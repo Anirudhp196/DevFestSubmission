@@ -485,7 +485,7 @@ export function MyTicketsPage() {
                         <div className="text-xs text-[#87928e]">{80 - eventArtistPct}%</div>
                       </div>
                       <div className="flex-1 p-3 bg-[rgba(38,43,42,0.3)] border border-[#262b2a] rounded-xl text-center">
-                        <div className="text-xs text-[#87928e] mb-1 font-['Inter:Regular',sans-serif]">Artist</div>
+                        <div className="text-xs text-[#87928e] mb-1 font-['Inter:Regular',sans-serif]">Organizer</div>
                         <div className="font-['Space_Grotesk:Bold',sans-serif] text-lg">{artistCut.toFixed(3)}</div>
                         <div className="text-xs text-[#87928e]">{eventArtistPct}%</div>
                       </div>

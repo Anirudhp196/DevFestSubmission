@@ -43,10 +43,10 @@ export default function App() {
         {/* About TicketChain - deep dive into features */}
         <Route path="/about" element={<AboutPage />} />
         
-        {/* Artist flow - create new events */}
+        {/* Organizer flow - create new events */}
         <Route path="/create-event" element={<CreateEventPage />} />
 
-        {/* Artist flow - manage events */}
+        {/* Organizer flow - manage events */}
         <Route path="/manage-events" element={<ManageEventsPage />} />
         
         {/* Purchase ticket flow */}

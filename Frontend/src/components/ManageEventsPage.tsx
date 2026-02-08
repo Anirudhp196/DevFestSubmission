@@ -1,5 +1,5 @@
 /**
- * MANAGE EVENTS PAGE - ARTIST VIEW
+ * MANAGE EVENTS PAGE - ORGANIZER VIEW
  *
  * Purpose:
  * - Show events created by connected wallet
@@ -84,14 +84,14 @@ export function ManageEventsPage() {
               Manage <span className="text-[#32b377]">Events</span>
             </h1>
             <p className="text-[#87928e] text-xl font-['Inter:Regular',sans-serif] mb-6">
-              Artist view of events created by this wallet.
+              Organizer view of events created by this wallet.
             </p>
             <Link
               to="/create-event"
               className="inline-flex items-center gap-2 bg-[#32b377] hover:bg-[#2a9865] transition-all px-6 py-3 rounded-xl font-['Inter:Medium',sans-serif] text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)]"
             >
               <Plus className="w-5 h-5" />
-              Create Event as Artist
+              Create Event as Organizer
             </Link>
           </motion.div>
         </div>

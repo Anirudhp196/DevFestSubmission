@@ -264,7 +264,7 @@ export function CreateEventPage() {
 
                     <div className="flex gap-3">
                       <div className="flex-1 p-3 bg-[rgba(50,179,119,0.05)] border border-[rgba(50,179,119,0.2)] rounded-xl text-center">
-                        <div className="text-xs text-[#87928e] mb-1 font-['Inter:Regular',sans-serif]">You (Artist)</div>
+                        <div className="text-xs text-[#87928e] mb-1 font-['Inter:Regular',sans-serif]">You (Organizer)</div>
                         <div className="font-['Space_Grotesk:Bold',sans-serif] text-lg text-[#32b377]">{artistPct}%</div>
                       </div>
                       <div className="flex-1 p-3 bg-[rgba(38,43,42,0.3)] border border-[#262b2a] rounded-xl text-center">
@@ -398,8 +398,8 @@ export function CreateEventPage() {
 
                 <div className="mt-6 pt-6 border-t border-[#262b2a]">
                   <div className="text-xs text-[#87928e] mb-2 font-['Inter:Medium',sans-serif]">Resale Split</div>
-                  <div className="text-sm font-['Inter:Medium',sans-serif] mb-4">
-                    <span className="text-[#32b377]">{artistPct}%</span> Artist · <span className="text-[#fafaf9]">{80 - artistPct}%</span> Seller · 20% Platform
+                    <div className="text-sm font-['Inter:Medium',sans-serif] mb-4">
+                    <span className="text-[#32b377]">{artistPct}%</span> Organizer · <span className="text-[#fafaf9]">{80 - artistPct}%</span> Seller · 20% Platform
                   </div>
                 </div>
 

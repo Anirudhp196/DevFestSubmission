@@ -115,7 +115,7 @@ export function MarketplacePage() {
               Fair <span className="text-[#32b377]">Marketplace</span>
             </h1>
             <p className="text-[#87928e] text-xl font-['Inter:Regular',sans-serif] max-w-2xl">
-              Buy and sell tickets fairly. Artists set their resale split, platform takes 20%. 
+              Buy and sell tickets fairly. Organizers set their resale split, platform takes 20%. 
               No more scalpers getting rich off your passion.
             </p>
           </motion.div>
@@ -168,7 +168,7 @@ export function MarketplacePage() {
               How the <span className="text-[#32b377]">Custom Split</span> Works
             </h2>
             <p className="text-[#87928e] text-lg font-['Inter:Regular',sans-serif]">
-              Every resale automatically splits profits on-chain. Artists set their cut, platform takes 20%, sellers get the rest.
+              Every resale automatically splits profits on-chain. Organizers set their cut, platform takes 20%, sellers get the rest.
             </p>
           </motion.div>
           
@@ -176,14 +176,14 @@ export function MarketplacePage() {
             {[
               {
                 percent: "0-80%",
-                recipient: "Artist",
-                description: "Artists choose their resale share when creating the event",
+                recipient: "Organizer",
+                description: "Organizers choose their resale share when creating the event",
                 color: "#32b377"
               },
               {
                 percent: "0-80%",
                 recipient: "Seller",
-                description: "Fair profit for sellers — gets whatever the artist doesn't take",
+                description: "Fair profit for sellers — gets whatever the organizer doesn't take",
                 color: "#32b377"
               },
               {
@@ -369,7 +369,7 @@ export function MarketplacePage() {
                           <div className="flex items-center gap-2">
                             <div className="w-3 h-3 bg-[#32b377] rounded" />
                             <span className="text-xs text-[#87928e] font-['Inter:Regular',sans-serif]">
-                              Artist: {artistAmt} SOL ({aPct}%)
+                              Organizer: {artistAmt} SOL ({aPct}%)
                             </span>
                           </div>
                           <div className="flex items-center gap-2">

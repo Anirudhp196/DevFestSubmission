@@ -60,8 +60,8 @@ export function AboutPage() {
             <h2 className="font-['Space_Grotesk:Bold',sans-serif] text-5xl mb-6">
               The Traditional Ticketing <span className="text-[#ff6464]">Problem</span>
             </h2>
-            <p className="text-[#87928e] text-xl max-w-3xl mx-auto font-['Inter:Regular',sans-serif]">
-              Centralized platforms, scalper bots, hidden fees, and artists getting shortchanged. 
+            <p className="text-[#87928e] text-2xl max-w-3xl mx-auto font-['Inter:Regular',sans-serif]">
+              Centralized platforms, scalper bots, hidden fees, and organizers getting shortchanged. 
               The current system is broken. We're fixing it.
             </p>
           </motion.div>
@@ -90,7 +90,7 @@ export function AboutPage() {
                   "Hidden fees reaching 30%+ per ticket",
                   "Scalper bots buy up inventory instantly",
                   "Paper tickets easily counterfeited",
-                  "Artists get nothing from resales",
+                  "Organizers get nothing from resales",
                   "No loyalty rewards for fans",
                   "Opaque pricing & fee structures",
                   "Days to settle payments"
@@ -125,7 +125,7 @@ export function AboutPage() {
                   "Transparent 20% platform fee only",
                   "Anti-scalping built into smart contracts",
                   "NFT tickets - impossible to counterfeit",
-                  "Artists earn 40% of all resales",
+                  "Organizers earn 40% of all resales",
                   "Loyalty badges unlock early access",
                   "All fees visible upfront on-chain",
                   "Instant settlement in seconds"
@@ -194,7 +194,7 @@ export function AboutPage() {
               {
                 icon: <TrendingUp className="w-6 h-6" />,
                 title: "Fair Resale Logic",
-                description: "Artists set their resale share (0–80%); platform takes 20%, seller gets the rest. Enforced on-chain on every secondary sale."
+                description: "Organizers set their resale share (0–80%); platform takes 20%, seller gets the rest. Enforced on-chain on every secondary sale."
               }
             ].map((tech, index) => (
               <motion.div
@@ -278,7 +278,7 @@ export function AboutPage() {
               <span className="text-[#32b377]">not scalpers or middlemen.</span>"
             </h2>
             <p className="text-[#87928e] text-xl leading-relaxed font-['Inter:Regular',sans-serif]">
-              TicketChain is a consumer-grade, Web3-native ticketing platform that lets artists mint 
+              TicketChain is a consumer-grade, Web3-native ticketing platform that lets organizers mint 
               fraud-proof tickets, set fair resale rules on-chain, and sell directly to fans—without 
               forcing users to understand crypto. It replaces opaque, centralized ticketing with 
               verifiable rules, seamless onboarding, and a mainstream app experience.
@@ -306,7 +306,7 @@ export function AboutPage() {
             {[
               { value: "< 0.001", label: "SOL per transaction", sublabel: "vs $5-15 traditional fees" },
               { value: "400ms", label: "Average block time", sublabel: "Instant finality" },
-              { value: "40%", label: "To artists on resale", sublabel: "vs 0% traditional" },
+              { value: "40%", label: "To organizers on resale", sublabel: "vs 0% traditional" },
               { value: "0%", label: "Scalping incentive", sublabel: "Anti-bot by design" }
             ].map((metric, index) => (
               <motion.div

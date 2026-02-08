@@ -184,7 +184,7 @@ function Container7() {
   return (
     <div className="absolute content-stretch flex flex-col items-start left-[24px] right-[24px] top-[115.25px]" data-name="Container">
       <div className="flex flex-col font-['Inter:Regular',sans-serif] font-normal justify-center leading-[22.75px] not-italic relative shrink-0 text-[#87928e] text-[14px] whitespace-nowrap">
-        <p className="mb-0">Resale profits are split 40% artist, 40% seller,</p>
+        <p className="mb-0">Resale profits are split 40% organizer, 40% seller,</p>
         <p className="mb-0">20% platform. Scalping incentives are</p>
         <p>structurally eliminated.</p>
       </div>
@@ -343,7 +343,7 @@ function Container10() {
   return (
     <div className="absolute content-stretch flex flex-col items-start left-[24px] right-[24px] top-[115.25px]" data-name="Container">
       <div className="flex flex-col font-['Inter:Regular',sans-serif] font-normal justify-center leading-[22.75px] not-italic relative shrink-0 text-[#87928e] text-[14px] whitespace-nowrap">
-        <p className="mb-0">Artists manage events and track sales. Fans</p>
+        <p className="mb-0">Organizers manage events and track sales. Fans</p>
         <p className="mb-0">browse, buy, earn loyalty, and resell. Each role</p>
         <p>gets a tailored experience.</p>
       </div>
@@ -573,7 +573,7 @@ function Container21() {
   return (
     <div className="content-stretch flex flex-col items-center relative shrink-0 w-full" data-name="Container">
       <div className="flex flex-col font-['Inter:Regular',sans-serif] font-normal justify-center leading-[0] not-italic relative shrink-0 text-[#87928e] text-[14px] text-center whitespace-nowrap">
-        <p className="leading-[20px]">Artist-Set Resale Split</p>
+        <p className="leading-[20px]">Organizer-Set Resale Split</p>
       </div>
     </div>
   );
@@ -753,7 +753,7 @@ function Container34() {
   return (
     <div className="absolute content-stretch flex flex-col items-start left-0 right-0 top-[87.25px]" data-name="Container">
       <div className="flex flex-col font-['Inter:Regular',sans-serif] font-normal justify-center leading-[22.75px] not-italic relative shrink-0 text-[#87928e] text-[14px] whitespace-nowrap">
-        <p className="mb-0">Select Artist to create events and</p>
+        <p className="mb-0">Select Organizer to create events and</p>
         <p className="mb-0">sell tickets, or Fan to browse and</p>
         <p>buy.</p>
       </div>
@@ -796,7 +796,7 @@ function Container37() {
   return (
     <div className="absolute content-stretch flex flex-col items-start left-0 right-0 top-[87.25px]" data-name="Container">
       <div className="flex flex-col font-['Inter:Regular',sans-serif] font-normal justify-center leading-[22.75px] not-italic relative shrink-0 text-[#87928e] text-[14px] whitespace-nowrap">
-        <p className="mb-0">Artists set up events with ticket</p>
+        <p className="mb-0">Organizers set up events with ticket</p>
         <p className="mb-0">supply and pricing. Fans purchase</p>
         <p>NFT tickets instantly.</p>
       </div>

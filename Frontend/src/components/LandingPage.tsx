@@ -191,7 +191,7 @@ export function LandingPage() {
               {
                 icon: <TrendingUp className="w-6 h-6" />,
                 title: "Fair Marketplace",
-                description: "Resale profits are split 40% artist, 40% seller, 20% platform. Scalping incentives are structurally eliminated.",
+                description: "Resale profits are split 40% organizer, 40% seller, 20% platform. Scalping incentives are structurally eliminated.",
                 color: "#32b377"
               },
               {
@@ -209,7 +209,7 @@ export function LandingPage() {
               {
                 icon: <Users className="w-6 h-6" />,
                 title: "Role-Based Access",
-                description: "Artists manage events and track sales. Fans browse, buy, earn loyalty, and resell. Each role gets a tailored experience.",
+                description: "Organizers manage events and track sales. Fans browse, buy, earn loyalty, and resell. Each role gets a tailored experience.",
                 color: "#32b377"
               }
             ].map((feature, index) => (
