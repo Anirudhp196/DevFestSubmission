@@ -2,7 +2,9 @@
 
 TicketChain is a Web3 event ticketing platform where every ticket is an NFT on Solana. Organizers create events, set prices, and choose how resale revenue is split — all enforced by an on-chain smart contract. Fans buy, hold, and resell tickets through a consumer-grade UI without needing to understand crypto.
 
-**Live on Solana Devnet:** [`BxjzLBTGVQYHRAC5NBGvyn9r6V7GfVHWUExFcJbRoCts`](https://explorer.solana.com/address/BxjzLBTGVQYHRAC5NBGvyn9r6V7GfVHWUExFcJbRoCts?cluster=devnet)
+**🌐 Live App:** [https://ticket-chain-two.vercel.app](https://ticket-chain-two.vercel.app/)
+
+**On-Chain Program (Solana Devnet):** [`BxjzLBTGVQYHRAC5NBGvyn9r6V7GfVHWUExFcJbRoCts`](https://explorer.solana.com/address/BxjzLBTGVQYHRAC5NBGvyn9r6V7GfVHWUExFcJbRoCts?cluster=devnet)
 
 ---
 
@@ -28,13 +30,13 @@ TicketChain is a Web3 event ticketing platform where every ticket is an NFT on S
 ```
 ┌───────────────────────────────────────────┐
 │  Browser (React + Phantom Wallet)         │
-│  localhost:3000                            │
+│  ticket-chain-two.vercel.app              │
 └────────────┬──────────────────────────────┘
              │  HTTP (JSON)
              ▼
 ┌───────────────────────────────────────────┐
 │  API Server (Express.js)                  │
-│  localhost:3001                            │
+│  Hosted on Render                         │
 │  Builds unsigned Anchor transactions      │
 │  Optional: Supabase cache for event data  │
 └────────────┬──────────────────────────────┘
@@ -155,44 +157,6 @@ TicketChain/
 
 ---
 
-## Prerequisites
-
-| Tool | Version | Install |
-|------|---------|---------|
-| Node.js | 18+ | https://nodejs.org |
-| pnpm | 8+ | `npm install -g pnpm` |
-| Phantom wallet | latest | https://phantom.app (browser extension) |
-
-> **You do NOT need Rust, Solana CLI, or Anchor installed.** The program is already deployed to Devnet. You only need Node.js to run the app.
-
----
-
-## Quick Start
-
-```bash
-# 1. Clone
-git clone https://github.com/Anirudhp196/TicketChain.git
-cd TicketChain
-
-# 2. Install dependencies
-cd backend/api && npm install && cd ../..
-cd Frontend && pnpm install && cd ..
-
-# 3. Start the API (Terminal 1)
-cd backend/api
-SOLANA_RPC_URL=https://api.devnet.solana.com node src/index.js
-# → TicketChain API listening on http://localhost:3001
-
-# 4. Start the frontend (Terminal 2)
-cd Frontend
-VITE_API_URL=http://localhost:3001 pnpm dev
-# → Local: http://localhost:3000/
-```
-
-Open **http://localhost:3000**, connect Phantom (set to **Devnet**), and you're in.
-
----
-
 ## Wallet Setup (Phantom)
 
 1. Install the [Phantom](https://phantom.app) browser extension
@@ -204,8 +168,10 @@ Open **http://localhost:3000**, connect Phantom (set to **Devnet**), and you're 
 
 ## How to Test
 
+Visit **[https://ticket-chain-two.vercel.app](https://ticket-chain-two.vercel.app/)** and connect your Phantom wallet (set to **Devnet**).
+
 ### As an Organizer
-1. Connect Phantom at **http://localhost:3000**
+1. Connect Phantom on the site
 2. Go to `/create-event` — fill in event details, set your resale split (0–80%), and click **Create Event & Mint Tickets**
 3. Approve the transaction in Phantom — your event is now on-chain
 4. Go to `/manage-events` to see your events, view attendees, or delete an event
@@ -225,77 +191,13 @@ When a resale purchase happens, the program atomically splits the SOL:
 
 ---
 
-## Environment Variables
-
-| Variable | Where | Default | Description |
-|----------|-------|---------|-------------|
-| `VITE_API_URL` | Frontend | *(none — required)* | API server URL, e.g. `http://localhost:3001` |
-| `SOLANA_RPC_URL` | API | `https://api.devnet.solana.com` | Solana RPC endpoint |
-| `PORT` | API | `3001` | API server port |
-| `SUPABASE_URL` | API | *(optional)* | Supabase project URL for caching event/ticket data |
-| `SUPABASE_KEY` | API | *(optional)* | Supabase anon/service key |
-
----
-
-## Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| `Failed to fetch` in browser | Make sure the API is running on port 3001 and `VITE_API_URL=http://localhost:3001` |
-| `API returned HTML` | You're pointing `VITE_API_URL` at the frontend (3000) instead of the API (3001) |
-| Phantom says "Not enough SOL" | Get free devnet SOL from https://faucet.solana.com |
-| Phantom won't connect | Confirm Phantom is set to **Devnet**, not Mainnet |
-| `EADDRINUSE 3001` | Kill the existing process: `lsof -ti:3001 \| xargs kill -9` |
-| Events page is empty | Ensure the API is running and `VITE_API_URL` is set correctly |
-
----
-
 ## Deployment
 
-The repo includes a [render.yaml](render.yaml) blueprint for one-click API deployment on Render.
-
-| Part | Platform | Notes |
-|------|----------|-------|
-| Frontend | **Vercel** | Static build. Set `VITE_API_URL` to deployed API URL. Root dir: `Frontend`. |
-| API | **Render** or **Railway** | Node server. Set `SOLANA_RPC_URL`. Root dir: `backend/api`. |
-| Solana program | Already on Devnet | No redeploy unless you change the Rust code. |
-
-### Deploy the API (Render — recommended)
-
-1. Push to GitHub
-2. Go to [render.com](https://render.com) → **New** → **Blueprint** → connect this repo
-3. Render reads `render.yaml` and deploys automatically
-4. Optionally set `SUPABASE_URL` and `SUPABASE_KEY` in the dashboard for persistent caching
-5. Copy the service URL (e.g. `https://ticketchain-api.onrender.com`)
-
-### Deploy the Frontend (Vercel)
-
-1. Go to [vercel.com](https://vercel.com) → import the repo
-2. Set **Root Directory** to `Frontend`
-3. Add env var: `VITE_API_URL` = your Render API URL (no trailing slash)
-4. Deploy — Vercel runs `pnpm build` and serves the static app
-
----
-
-## Rebuilding the Solana Program (optional)
-
-Only needed if you change the Rust code in `backend/program/`. Requires Rust, Solana CLI 1.18+, and Anchor 0.30.1.
-
-```bash
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Install Solana CLI
-sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
-
-# Build
-cd backend/program
-anchor build
-
-# Deploy (needs ~2 SOL on devnet)
-solana airdrop 2 --url devnet
-anchor deploy --provider.cluster devnet
-```
+| Part | Platform | URL |
+|------|----------|-----|
+| Frontend | **Vercel** | [ticket-chain-two.vercel.app](https://ticket-chain-two.vercel.app/) |
+| API | **Render** | Deployed via [render.yaml](render.yaml) blueprint |
+| Solana program | **Devnet** | [`BxjzLBTG...`](https://explorer.solana.com/address/BxjzLBTGVQYHRAC5NBGvyn9r6V7GfVHWUExFcJbRoCts?cluster=devnet) |
 
 ---
 
