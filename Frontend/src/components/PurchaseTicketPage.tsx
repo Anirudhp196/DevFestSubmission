@@ -36,6 +36,7 @@ export function PurchaseTicketPage() {
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     if (!eventId) {
@@ -64,7 +65,7 @@ export function PurchaseTicketPage() {
     setPurchaseError(null);
     setPurchaseSuccess(null);
     try {
-      const result = await buyTicket(String(eventId), publicKey, event.tier);
+      const result = await buyTicket(String(eventId), publicKey, event.tier, quantity);
       if (result.transaction) {
         const adapter = wallet?.adapter;
         if (!adapter || !('signTransaction' in adapter)) throw new Error('Wallet not ready to sign');
@@ -73,8 +74,12 @@ export function PurchaseTicketPage() {
         const signed = await adapter.signTransaction(tx);
         const sig = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false });
         await connection.confirmTransaction(sig, 'confirmed');
-        await confirmTicketPurchase(String(eventId), publicKey, sig);
-        setPurchaseSuccess('Purchase submitted. Check your wallet for the NFT ticket.');
+        await confirmTicketPurchase(String(eventId), publicKey, sig, result.ticketMints ?? undefined);
+        setPurchaseSuccess(
+          quantity > 1
+            ? `${quantity} tickets purchased. Check your wallet for the NFT tickets.`
+            : 'Purchase submitted. Check your wallet for the NFT ticket.'
+        );
       } else {
         setPurchaseSuccess(result.message ?? 'Purchase submitted.');
       }
@@ -112,6 +117,8 @@ export function PurchaseTicketPage() {
       </div>
     );
   }
+
+  const maxQuantity = Math.min(20, Math.max(1, event?.available ?? 10));
 
   return (
     <div className="min-h-screen bg-[#090b0b] text-[#fafaf9]">
@@ -165,7 +172,7 @@ export function PurchaseTicketPage() {
                       {event.title}
                     </h3>
                     <p className="text-[#87928e] text-lg font-['Inter:Medium',sans-serif]">
-                      {event.artist}
+                      {event.artist ?? event.organizer ?? 'Event'}
                     </p>
                   </div>
                   
@@ -196,9 +203,28 @@ export function PurchaseTicketPage() {
                       <span className="text-[#87928e] font-['Inter:Regular',sans-serif]">Ticket Tier</span>
                       <span className="font-['Inter:Medium',sans-serif]">{event.tier ?? 'General Admission'}</span>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <span className="text-[#87928e] font-['Inter:Regular',sans-serif]">Quantity</span>
-                      <span className="font-['Inter:Medium',sans-serif]">1 ticket</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                          className="w-8 h-8 rounded-lg bg-[#262b2a] hover:bg-[#32b377] text-[#fafaf9] font-['Inter:Medium',sans-serif] disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={quantity <= 1}
+                        >
+                          −
+                        </button>
+                        <span className="font-['Inter:Medium',sans-serif] min-w-[2rem] text-center">{quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
+                          className="w-8 h-8 rounded-lg bg-[#262b2a] hover:bg-[#32b377] text-[#fafaf9] font-['Inter:Medium',sans-serif] disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={quantity >= maxQuantity}
+                        >
+                          +
+                        </button>
+                        <span className="text-[#87928e] text-sm font-['Inter:Regular',sans-serif]">(max {maxQuantity})</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -274,8 +300,8 @@ export function PurchaseTicketPage() {
                 
                 <div className="space-y-4 mb-6 pb-6 border-b border-[#262b2a]">
                   <div className="flex items-center justify-between">
-                    <span className="text-[#87928e] font-['Inter:Regular',sans-serif]">Ticket Price</span>
-                    <span className="font-['Inter:Medium',sans-serif]">{event.price} SOL</span>
+                    <span className="text-[#87928e] font-['Inter:Regular',sans-serif]">Ticket Price × {quantity}</span>
+                    <span className="font-['Inter:Medium',sans-serif]">{(event.price * quantity).toFixed(2)} SOL</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[#87928e] font-['Inter:Regular',sans-serif]">Platform Fee</span>
@@ -290,7 +316,7 @@ export function PurchaseTicketPage() {
                 <div className="flex items-center justify-between mb-8">
                   <span className="font-['Space_Grotesk:Bold',sans-serif] text-xl">Total</span>
                   <span className="font-['Space_Grotesk:Bold',sans-serif] text-3xl text-[#32b377]">
-                    {(event.price + 0.01).toFixed(2)} SOL
+                    {(event.price * quantity + 0.01).toFixed(2)} SOL
                   </span>
                 </div>
                 

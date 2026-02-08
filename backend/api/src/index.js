@@ -13,9 +13,11 @@ import express from 'express';
 import cors from 'cors';
 import {
   buildBuyTicketTransaction,
+  buildBuyTicketsTransaction,
   buildCreateEventTransaction,
   buildCloseEventTransaction,
   buildListForResaleTransaction,
+  buildListForResaleTransactions,
   buildBuyResaleTransaction,
   buildCancelListingTransaction,
   fetchAllEvents,
@@ -254,14 +256,15 @@ app.delete('/api/events', async (req, res) => {
 // ── Tickets ──────────────────────────────────────────────────────────
 
 app.post('/api/tickets/buy', async (req, res) => {
-  const { eventId, eventPubkey, wallet, tier } = req.body ?? {};
+  const { eventId, eventPubkey, wallet, tier, quantity } = req.body ?? {};
   if (!wallet) return res.status(400).json({ error: 'Missing wallet' });
+
+  const qty = Math.min(Math.max(1, parseInt(quantity, 10) || 1), 20);
 
   // Resolve eventPubkey from various sources
   let eventPk = eventPubkey ?? null;
 
   if (!eventPk && eventId) {
-    // Try to find in Supabase cache or chain
     const cached = await getCachedEvents();
     if (cached) {
       const match = cached.find((r) =>
@@ -270,8 +273,6 @@ app.post('/api/tickets/buy', async (req, res) => {
       );
       if (match) eventPk = match.event_pubkey;
     }
-
-    // Fallback: search chain
     if (!eventPk) {
       try {
         const chainEvents = await fetchAllEvents();
@@ -286,8 +287,12 @@ app.post('/api/tickets/buy', async (req, res) => {
 
   if (eventPk) {
     try {
-      const transaction = await buildBuyTicketTransaction(eventPk, wallet);
-      return res.json({ transaction, message: 'Sign and submit this transaction in your wallet' });
+      if (qty === 1) {
+        const transaction = await buildBuyTicketTransaction(eventPk, wallet);
+        return res.json({ transaction, message: 'Sign and submit this transaction in your wallet' });
+      }
+      const { transaction, ticketMints } = await buildBuyTicketsTransaction(eventPk, wallet, qty);
+      return res.json({ transaction, ticketMints, message: `Sign to buy ${qty} tickets` });
     } catch (e) {
       console.error('buy_ticket build failed', e);
       return res.status(400).json({ error: e.message ?? 'Failed to build buy_ticket transaction' });
@@ -298,13 +303,12 @@ app.post('/api/tickets/buy', async (req, res) => {
 });
 
 app.post('/api/tickets/confirm', async (req, res) => {
-  const { eventId, wallet, signature } = req.body ?? {};
+  const { eventId, wallet, signature, ticketMints } = req.body ?? {};
   if (!eventId || !wallet || !signature) {
     return res.status(400).json({ error: 'Missing eventId, wallet, or signature' });
   }
 
   try {
-    // Find event metadata (from cache or chain)
     let eventTitle = 'On-chain Event';
     let eventArtist = 'On-chain Event';
     let eventDate = 'TBD';
@@ -312,7 +316,6 @@ app.post('/api/tickets/confirm', async (req, res) => {
     let eventPrice = 0;
     let eventPk = null;
 
-    // Try Supabase cache
     const cached = await getCachedEvents();
     if (cached) {
       const match = cached.find((r) =>
@@ -327,8 +330,6 @@ app.post('/api/tickets/confirm', async (req, res) => {
         eventPk = match.event_pubkey;
       }
     }
-
-    // Fallback: chain
     if (!eventPk) {
       try {
         const chainEvents = await fetchAllEvents();
@@ -346,52 +347,73 @@ app.post('/api/tickets/confirm', async (req, res) => {
       } catch (_) {}
     }
 
-    // Derive ticket mint PDA
-    let ticketMint = null;
-    if (eventPk) {
-      try {
-        const { PublicKey } = await import('@solana/web3.js');
-        const eventPkObj = new PublicKey(eventPk);
+    const mints = Array.isArray(ticketMints) && ticketMints.length > 0
+      ? ticketMints
+      : null;
 
-        // Get purchase count for this event to determine sold index
-        const dbPurchases = await getPurchasesByEvent(eventId);
-        const purchaseCount = dbPurchases
-          ? dbPurchases.length
-          : inMemoryPurchases.filter((p) => String(p.eventId) === String(eventId)).length;
-
-        const soldBuf = Buffer.alloc(4);
-        soldBuf.writeUInt32LE(purchaseCount, 0);
-        const [mintPda] = PublicKey.findProgramAddressSync(
-          [Buffer.from('ticket_mint'), eventPkObj.toBuffer(), soldBuf],
-          new PublicKey('BxjzLBTGVQYHRAC5NBGvyn9r6V7GfVHWUExFcJbRoCts')
-        );
-        ticketMint = mintPda.toBase58();
-      } catch (e) {
-        console.error('Failed to derive ticket mint PDA', e);
+    if (mints && mints.length > 0) {
+      // Multi-buy: one purchase record per ticket mint
+      const tickets = mints.map((ticketMint) => ({
+        id: nextTicketId++,
+        eventId,
+        event: eventTitle,
+        artist: eventArtist,
+        date: eventDate,
+        tier: eventTier,
+        purchasePrice: eventPrice,
+        suggestedPrice: eventPrice ? Number((eventPrice * 1.1).toFixed(2)) : 0,
+        eventPubkey: eventPk,
+        ticketMint,
+        wallet,
+        signature,
+        purchasedAt: new Date().toISOString(),
+      }));
+      for (const ticket of tickets) {
+        await addPurchase(ticket);
+        inMemoryPurchases.push(ticket);
       }
+      res.json({ tickets });
+    } else {
+      // Single buy: derive ticket mint from purchase count
+      let ticketMint = null;
+      if (eventPk) {
+        try {
+          const { PublicKey } = await import('@solana/web3.js');
+          const eventPkObj = new PublicKey(eventPk);
+          const dbPurchases = await getPurchasesByEvent(eventId);
+          const purchaseCount = dbPurchases
+            ? dbPurchases.length
+            : inMemoryPurchases.filter((p) => String(p.eventId) === String(eventId)).length;
+          const soldBuf = Buffer.alloc(4);
+          soldBuf.writeUInt32LE(purchaseCount, 0);
+          const [mintPda] = PublicKey.findProgramAddressSync(
+            [Buffer.from('ticket_mint'), eventPkObj.toBuffer(), soldBuf],
+            new PublicKey('BxjzLBTGVQYHRAC5NBGvyn9r6V7GfVHWUExFcJbRoCts')
+          );
+          ticketMint = mintPda.toBase58();
+        } catch (e) {
+          console.error('Failed to derive ticket mint PDA', e);
+        }
+      }
+      const ticket = {
+        id: nextTicketId++,
+        eventId,
+        event: eventTitle,
+        artist: eventArtist,
+        date: eventDate,
+        tier: eventTier,
+        purchasePrice: eventPrice,
+        suggestedPrice: eventPrice ? Number((eventPrice * 1.1).toFixed(2)) : 0,
+        eventPubkey: eventPk,
+        ticketMint,
+        wallet,
+        signature,
+        purchasedAt: new Date().toISOString(),
+      };
+      await addPurchase(ticket);
+      inMemoryPurchases.push(ticket);
+      res.json({ ticket });
     }
-
-    const ticket = {
-      id: nextTicketId++,
-      eventId,
-      event: eventTitle,
-      artist: eventArtist,
-      date: eventDate,
-      tier: eventTier,
-      purchasePrice: eventPrice,
-      suggestedPrice: eventPrice ? Number((eventPrice * 1.1).toFixed(2)) : 0,
-      eventPubkey: eventPk,
-      ticketMint,
-      wallet,
-      signature,
-      purchasedAt: new Date().toISOString(),
-    };
-
-    // Write to Supabase + in-memory fallback
-    await addPurchase(ticket);
-    inMemoryPurchases.push(ticket);
-
-    res.json({ ticket });
     triggerSync();
   } catch (e) {
     console.error('POST /api/tickets/confirm failed:', e.message);
@@ -502,6 +524,35 @@ app.post('/api/listings', async (req, res) => {
   } catch (e) {
     console.error('list_for_resale build failed', e);
     res.status(500).json({ error: e.message ?? 'Failed to build list_for_resale transaction' });
+  }
+});
+
+// Batch list multiple tickets in one transaction
+app.post('/api/listings/batch', async (req, res) => {
+  const { sellerWallet, listings } = req.body ?? {};
+  if (!sellerWallet || !Array.isArray(listings) || listings.length === 0) {
+    return res.status(400).json({
+      error: 'Missing sellerWallet or listings array (e.g. [{ eventPubkey, ticketMint, priceSol }])',
+    });
+  }
+  if (listings.length > 10) {
+    return res.status(400).json({ error: 'Max 10 tickets per batch' });
+  }
+  try {
+    const items = listings.map((l) => ({
+      eventPubkey: l.eventPubkey,
+      ticketMint: l.ticketMint,
+      priceLamports: Math.round(Number(l.priceSol ?? 0) * 1e9),
+    }));
+    if (items.some((i) => !i.eventPubkey || !i.ticketMint)) {
+      return res.status(400).json({ error: 'Each listing must have eventPubkey and ticketMint' });
+    }
+    const { transaction } = await buildListForResaleTransactions(sellerWallet, items);
+    res.json({ transaction, message: `List ${listings.length} ticket(s) for resale` });
+    triggerSync();
+  } catch (e) {
+    console.error('list_for_resale batch build failed', e);
+    res.status(500).json({ error: e.message ?? 'Failed to build batch listing transaction' });
   }
 });
 

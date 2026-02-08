@@ -13,7 +13,7 @@ import {
   pruneStaleEvents,
 } from './db.js';
 
-const SYNC_INTERVAL_MS = 3_000; // 3 seconds
+const SYNC_INTERVAL_MS = 5_000; // 5 seconds
 
 let syncing = false;
 
@@ -26,17 +26,13 @@ export async function syncFromChain() {
   syncing = true;
 
   try {
-    console.log('[sync] Fetching events from chain...');
     const events = await fetchAllEvents();
     await cacheEvents(events);
-    // Prune events that no longer exist on-chain (deleted)
     await pruneStaleEvents(events.map((e) => e.eventPubkey));
-    console.log(`[sync] Cached ${events.length} events`);
-
-    console.log('[sync] Fetching listings from chain...');
     const listings = await fetchAllListings();
     await replaceCachedListings(listings);
-    console.log(`[sync] Cached ${listings.length} listings`);
+    // Single line per run to avoid log spam; 30s interval keeps public RPC under rate limit
+    console.log(`[sync] OK — ${events.length} events, ${listings.length} listings`);
   } catch (e) {
     console.error('[sync] Chain sync failed:', e.message);
   } finally {

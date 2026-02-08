@@ -6,7 +6,7 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import anchor from '@coral-xyz/anchor';
 const { BN } = anchor;
@@ -133,6 +133,69 @@ export async function buildBuyTicketTransaction(eventPubkey, buyerPubkey) {
 }
 
 /**
+ * Build unsigned transaction to buy multiple tickets (N × buy_ticket in one tx).
+ * Returns { transaction: base64, ticketMints: string[] }.
+ */
+export async function buildBuyTicketsTransaction(eventPubkey, buyerPubkey, quantity) {
+  const connection = getConnection();
+  const eventPk = new PublicKey(eventPubkey);
+  const buyerPk = new PublicKey(buyerPubkey);
+
+  const eventData = await fetchEvent(connection, eventPk);
+  if (!eventData) throw new Error('Event account not found');
+  if (eventData.sold + quantity > eventData.supply) {
+    throw new Error(`Only ${eventData.supply - eventData.sold} tickets left`);
+  }
+  if (quantity < 1 || quantity > 20) throw new Error('Quantity must be 1–20');
+
+  const program = getProgram(connection);
+  const ticketMints = [];
+  const blockhash = (await connection.getLatestBlockhash()).blockhash;
+
+  const tx = new Transaction();
+  tx.recentBlockhash = blockhash;
+  tx.feePayer = buyerPk;
+
+  for (let i = 0; i < quantity; i++) {
+    const soldIndex = eventData.sold + i;
+    const soldBuf = Buffer.alloc(4);
+    soldBuf.writeUInt32LE(soldIndex, 0);
+
+    const ticketAuthority = findPda(
+      [Buffer.from('ticket_authority'), eventPk.toBuffer(), soldBuf],
+      PROGRAM_ID
+    );
+    const ticketMint = findPda(
+      [Buffer.from('ticket_mint'), eventPk.toBuffer(), soldBuf],
+      PROGRAM_ID
+    );
+    ticketMints.push(ticketMint.toBase58());
+
+    const buyerAta = getAssociatedTokenAddressSync(ticketMint, buyerPk);
+
+    const ix = await program.methods
+      .buyTicket()
+      .accounts({
+        buyer: buyerPk,
+        organizer: eventData.organizer,
+        event: eventPk,
+        ticketAuthority,
+        ticketMint,
+        buyerTokenAccount: buyerAta,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SYSTEM_PROGRAM_ID,
+      })
+      .instruction();
+
+    tx.add(ix);
+  }
+
+  const serialized = tx.serialize({ requireAllSignatures: false });
+  return { transaction: serialized.toString('base64'), ticketMints };
+}
+
+/**
  * Build create_event transaction using PDA for event account.
  * Only the organizer wallet needs to sign — no extra keypair.
  */
@@ -252,6 +315,58 @@ export async function buildListForResaleTransaction(sellerPubkey, eventPubkey, t
     transaction: serialized.toString('base64'),
     listingPubkey: listingPda.toBase58(),
   };
+}
+
+/**
+ * Build one transaction that lists multiple tickets for resale (N × list_for_resale in one tx).
+ * items: Array<{ eventPubkey, ticketMint, priceLamports }>
+ */
+export async function buildListForResaleTransactions(sellerPubkey, items) {
+  if (!items || items.length === 0) throw new Error('No items to list');
+  if (items.length > 10) throw new Error('Max 10 tickets per transaction');
+
+  const connection = getConnection();
+  const program = getProgram(connection);
+  const sellerPk = new PublicKey(sellerPubkey);
+  const blockhash = (await connection.getLatestBlockhash()).blockhash;
+
+  const tx = new Transaction();
+  tx.recentBlockhash = blockhash;
+  tx.feePayer = sellerPk;
+
+  for (const { eventPubkey, ticketMint, priceLamports } of items) {
+    const eventPk = new PublicKey(eventPubkey);
+    const ticketMintPk = new PublicKey(ticketMint);
+    const [listingPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('listing'), ticketMintPk.toBuffer()],
+      PROGRAM_ID
+    );
+    const [escrowPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('escrow'), ticketMintPk.toBuffer()],
+      PROGRAM_ID
+    );
+    const sellerAta = getAssociatedTokenAddressSync(ticketMintPk, sellerPk);
+
+    const ix = await program.methods
+      .listForResale(new BN(priceLamports))
+      .accounts({
+        seller: sellerPk,
+        event: eventPk,
+        ticketMint: ticketMintPk,
+        listing: listingPda,
+        sellerTokenAccount: sellerAta,
+        escrowTokenAccount: escrowPda,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SYSTEM_PROGRAM_ID,
+      })
+      .instruction();
+
+    tx.add(ix);
+  }
+
+  const serialized = tx.serialize({ requireAllSignatures: false });
+  return { transaction: serialized.toString('base64') };
 }
 
 /**

@@ -10,6 +10,8 @@ export interface BuyTicketResponse {
   message?: string;
   /** Base64 serialized unsigned transaction; frontend must sign and submit */
   transaction?: string;
+  /** For multi-buy: mint addresses of the tickets that will be minted */
+  ticketMints?: string[];
 }
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, ''); // no trailing slash
@@ -112,7 +114,7 @@ export async function createEvent(args: CreateEventArgs): Promise<CreateEventRes
   return res.json();
 }
 
-export async function buyTicket(eventId: string, wallet: string, tier?: string): Promise<BuyTicketResponse> {
+export async function buyTicket(eventId: string, wallet: string, tier?: string, quantity = 1): Promise<BuyTicketResponse> {
   if (!API_BASE) {
     return {
       signature: `mock-${eventId}-${Date.now()}`,
@@ -122,7 +124,7 @@ export async function buyTicket(eventId: string, wallet: string, tier?: string):
   const res = await apiFetch('/api/tickets/buy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ eventId, wallet, tier }),
+    body: JSON.stringify({ eventId, wallet, tier, quantity: Math.min(20, Math.max(1, quantity)) }),
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
@@ -131,7 +133,12 @@ export async function buyTicket(eventId: string, wallet: string, tier?: string):
   return res.json();
 }
 
-export async function confirmTicketPurchase(eventId: string, wallet: string, signature: string): Promise<{ ticket: Ticket }> {
+export async function confirmTicketPurchase(
+  eventId: string,
+  wallet: string,
+  signature: string,
+  ticketMints?: string[],
+): Promise<{ ticket?: Ticket; tickets?: Ticket[] }> {
   if (!API_BASE) {
     return {
       ticket: {
@@ -149,7 +156,7 @@ export async function confirmTicketPurchase(eventId: string, wallet: string, sig
   const res = await apiFetch('/api/tickets/confirm', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ eventId, wallet, signature }),
+    body: JSON.stringify({ eventId, wallet, signature, ticketMints: ticketMints ?? undefined }),
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
@@ -217,6 +224,23 @@ export async function listForResale(
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
     throw new Error(error?.error ?? 'Failed to build listing transaction');
+  }
+  return res.json();
+}
+
+/** Batch list multiple tickets in one transaction. listings: { eventPubkey, ticketMint, priceSol }[] */
+export async function listForResaleBatch(
+  sellerWallet: string,
+  listings: { eventPubkey: string; ticketMint: string; priceSol: number }[],
+): Promise<{ transaction: string; message?: string }> {
+  const res = await apiFetch('/api/listings/batch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sellerWallet, listings }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error?.error ?? 'Failed to build batch listing transaction');
   }
   return res.json();
 }

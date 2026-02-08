@@ -184,9 +184,9 @@ function Container7() {
   return (
     <div className="absolute content-stretch flex flex-col items-start left-[24px] right-[24px] top-[115.25px]" data-name="Container">
       <div className="flex flex-col font-['Inter:Regular',sans-serif] font-normal justify-center leading-[22.75px] not-italic relative shrink-0 text-[#87928e] text-[14px] whitespace-nowrap">
-        <p className="mb-0">Resale profits are split 40% organizer, 40% seller,</p>
-        <p className="mb-0">20% platform. Scalping incentives are</p>
-        <p>structurally eliminated.</p>
+        <p className="mb-0">Artists set their resale share (0–80%);</p>
+        <p className="mb-0">platform takes 20%, seller gets the rest.</p>
+        <p>Scalping incentives are structurally eliminated.</p>
       </div>
     </div>
   );

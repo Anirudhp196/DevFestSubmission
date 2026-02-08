@@ -191,7 +191,7 @@ export function LandingPage() {
               {
                 icon: <TrendingUp className="w-6 h-6" />,
                 title: "Fair Marketplace",
-                description: "Resale profits are split 40% organizer, 40% seller, 20% platform. Scalping incentives are structurally eliminated.",
+                description: "Artists set their resale share (0–80%); platform takes 20%, seller gets the rest. Scalping incentives are structurally eliminated.",
                 color: "#32b377"
               },
               {
