@@ -101,7 +101,7 @@ export function MarketplacePage() {
               Fair <span className="text-[#32b377]">Marketplace</span>
             </h1>
             <p className="text-[#87928e] text-xl font-['Inter:Regular',sans-serif] max-w-2xl">
-              Buy and sell tickets fairly. 40% to artist, 40% to seller, 20% to platform. 
+              Buy and sell tickets fairly. Artists set their resale split, platform takes 20%. 
               No more scalpers getting rich off your passion.
             </p>
           </motion.div>
@@ -151,25 +151,25 @@ export function MarketplacePage() {
             className="text-center mb-12"
           >
             <h2 className="font-['Space_Grotesk:Bold',sans-serif] text-4xl mb-4">
-              How the <span className="text-[#32b377]">40/40/20</span> Split Works
+              How the <span className="text-[#32b377]">Custom Split</span> Works
             </h2>
             <p className="text-[#87928e] text-lg font-['Inter:Regular',sans-serif]">
-              Every resale automatically splits profits on-chain. Artists keep earning, sellers profit fairly.
+              Every resale automatically splits profits on-chain. Artists set their cut, platform takes 20%, sellers get the rest.
             </p>
           </motion.div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               {
-                percent: "40%",
+                percent: "0-80%",
                 recipient: "Artist",
-                description: "Artists earn from every resale, rewarding creators long-term",
+                description: "Artists choose their resale share when creating the event",
                 color: "#32b377"
               },
               {
-                percent: "40%",
+                percent: "0-80%",
                 recipient: "Seller",
-                description: "Fair profit for sellers who can't attend, not scalpers",
+                description: "Fair profit for sellers — gets whatever the artist doesn't take",
                 color: "#32b377"
               },
               {
@@ -340,29 +340,40 @@ export function MarketplacePage() {
                 
                 {/* Fair Split Preview */}
                 <div className="mt-6 pt-6 border-t border-[#262b2a]">
-                  <div className="text-[#87928e] text-xs mb-3 font-['Inter:Medium',sans-serif]">
-                    Fair Split Breakdown for {listing.currentPrice} SOL:
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-[#32b377] rounded" />
-                      <span className="text-xs text-[#87928e] font-['Inter:Regular',sans-serif]">
-                        Artist: {(listing.currentPrice * 0.4).toFixed(2)} SOL (40%)
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-[#32b377] rounded" />
-                      <span className="text-xs text-[#87928e] font-['Inter:Regular',sans-serif]">
-                        Seller: {(listing.currentPrice * 0.4).toFixed(2)} SOL (40%)
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-[#87928e] rounded" />
-                      <span className="text-xs text-[#87928e] font-['Inter:Regular',sans-serif]">
-                        Platform: {(listing.currentPrice * 0.2).toFixed(2)} SOL (20%)
-                      </span>
-                    </div>
-                  </div>
+                  {(() => {
+                    const aPct = listing.artistPct ?? 40;
+                    const sPct = 80 - aPct;
+                    const artistAmt = (listing.currentPrice * aPct / 100).toFixed(2);
+                    const sellerAmt = (listing.currentPrice * sPct / 100).toFixed(2);
+                    const platformAmt = (listing.currentPrice * 0.2).toFixed(2);
+                    return (
+                      <>
+                        <div className="text-[#87928e] text-xs mb-3 font-['Inter:Medium',sans-serif]">
+                          Fair Split Breakdown for {listing.currentPrice} SOL:
+                        </div>
+                        <div className="flex gap-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-[#32b377] rounded" />
+                            <span className="text-xs text-[#87928e] font-['Inter:Regular',sans-serif]">
+                              Artist: {artistAmt} SOL ({aPct}%)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-[#32b377] rounded" />
+                            <span className="text-xs text-[#87928e] font-['Inter:Regular',sans-serif]">
+                              Seller: {sellerAmt} SOL ({sPct}%)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-[#87928e] rounded" />
+                            <span className="text-xs text-[#87928e] font-['Inter:Regular',sans-serif]">
+                              Platform: {platformAmt} SOL (20%)
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </motion.div>
             ))}

@@ -15,8 +15,12 @@ create table if not exists events (
   supply integer,
   sold integer default 0,
   available integer,
+  artist_pct smallint default 40,
   synced_at timestamptz default now()
 );
+
+-- Add artist_pct column if table already exists (idempotent)
+alter table events add column if not exists artist_pct smallint default 40;
 
 -- Purchases (ticket purchase records — not on-chain, needed for "My Tickets")
 create table if not exists purchases (

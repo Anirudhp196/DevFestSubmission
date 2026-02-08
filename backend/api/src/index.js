@@ -61,6 +61,7 @@ function chainEventToFrontend(ce) {
     tier: ce.tierName ?? ce.tier_name ?? 'General Admission',
     eventPubkey: ce.eventPubkey ?? ce.event_pubkey,
     organizerPubkey: ce.organizerPubkey ?? ce.organizer_pubkey,
+    artistPct: ce.artistPct ?? ce.artist_pct ?? 40,
   };
 }
 
@@ -82,6 +83,7 @@ app.get('/api/events', async (_req, res) => {
         supply: row.supply,
         sold: row.sold,
         available: row.available,
+        artistPct: row.artist_pct ?? 40,
       }));
       return res.json(events);
     }
@@ -120,6 +122,7 @@ app.get('/api/events/:id', async (req, res) => {
             supply: match.supply,
             sold: match.sold,
             available: match.available,
+            artistPct: match.artist_pct ?? 40,
           });
           return res.json({ ...event, tier: event.tier ?? 'General Admission' });
         }
@@ -177,7 +180,7 @@ app.get('/api/events/:id/attendees', async (req, res) => {
 
 // Create event: build create_event tx
 app.post('/api/events', async (req, res) => {
-  const { organizerPubkey, title, venue, dateTs, tierName, priceLamports, supply } = req.body ?? {};
+  const { organizerPubkey, title, venue, dateTs, tierName, priceLamports, supply, artistPct } = req.body ?? {};
   if (!organizerPubkey || !title || !venue || priceLamports == null || !supply) {
     return res.status(400).json({ error: 'Missing required fields: organizerPubkey, title, venue, dateTs, tierName, priceLamports, supply' });
   }
@@ -186,6 +189,7 @@ app.post('/api/events', async (req, res) => {
     const priceLamportsNum = Number(priceLamports);
     const dateTsNum = dateTs ?? Math.floor(Date.now() / 1000);
     const tier = tierName ?? 'General Admission';
+    const artistPctNum = artistPct != null ? Number(artistPct) : 40;
 
     const { transaction, eventPubkey } = await buildCreateEventTransaction(organizerPubkey, {
       title,
@@ -194,6 +198,7 @@ app.post('/api/events', async (req, res) => {
       tierName: tier,
       priceLamports: priceLamportsNum,
       supply: supplyNum,
+      artistPct: artistPctNum,
     });
 
     // Cache the new event in Supabase immediately
@@ -212,6 +217,7 @@ app.post('/api/events', async (req, res) => {
       available: supplyNum,
       date: dateStr,
       location: venue,
+      artistPct: artistPctNum,
     }]);
 
     res.json({ transaction, eventPubkey, eventId: `chain-${eventPubkey.slice(0, 8)}` });
@@ -438,6 +444,7 @@ app.get('/api/listings', async (_req, res) => {
           priceChange: evPrice ? Math.round(((priceSol - evPrice) / evPrice) * 100) : 0,
           listingAge: 'On-chain',
           eventPubkey: l.event_pubkey,
+          artistPct: ev?.artist_pct ?? 40,
         };
       });
       return res.json(enriched);
@@ -465,6 +472,7 @@ app.get('/api/listings', async (_req, res) => {
         priceChange: ev?.priceSol ? Math.round(((l.priceSol - ev.priceSol) / ev.priceSol) * 100) : 0,
         listingAge: 'On-chain',
         eventPubkey: l.event,
+        artistPct: ev?.artistPct ?? 40,
       };
     });
     res.json(enriched);

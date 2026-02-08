@@ -19,6 +19,7 @@ export interface Event {
   tier?: string; // e.g. "General Admission" for purchase flow
   organizerPubkey?: string;
   eventPubkey?: string;
+  artistPct?: number; // 0-80: artist's resale share (platform always 20%, seller gets rest)
 }
 
 export interface Ticket {
@@ -51,4 +52,5 @@ export interface Listing {
   listingAge: string;
   ticketMint?: string;
   eventPubkey?: string;
+  artistPct?: number; // artist's resale share for this event
 }

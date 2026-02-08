@@ -73,7 +73,9 @@ async function fetchEvent(connection, eventPubkey) {
   const supply = data.readUInt32LE(offset);
   offset += 4;
   const sold = data.readUInt32LE(offset);
-  return { organizer, sold, supply, priceLamports };
+  offset += 4;
+  const artistPct = offset < data.length ? data.readUInt8(offset) : 40;
+  return { organizer, sold, supply, priceLamports, artistPct };
 }
 
 function findPda(seeds, programId) {
@@ -149,6 +151,8 @@ export async function buildCreateEventTransaction(organizerPubkey, args) {
     PROGRAM_ID
   );
 
+  const artistPct = args.artistPct != null ? args.artistPct : 40;
+
   const tx = await program.methods
     .createEvent(
       nonce,
@@ -157,7 +161,8 @@ export async function buildCreateEventTransaction(organizerPubkey, args) {
       new BN(args.dateTs),
       args.tierName,
       new BN(args.priceLamports),
-      args.supply
+      args.supply,
+      artistPct
     )
     .accounts({
       organizer: organizerPk,
@@ -392,6 +397,9 @@ export async function fetchAllEvents() {
       offset += 4;
       // sold (u32)
       const sold = data.readUInt32LE(offset);
+      offset += 4;
+      // artist_pct (u8) — may not exist on old accounts
+      const artistPct = offset < data.length ? data.readUInt8(offset) : 40;
 
       const dateStr = new Date(dateTs * 1000).toLocaleDateString('en-US', {
         year: 'numeric', month: 'long', day: 'numeric',
@@ -411,6 +419,7 @@ export async function fetchAllEvents() {
         available: supply - sold,
         date: dateStr,
         location: venue,
+        artistPct,
       };
     } catch (e) {
       console.error('Failed to parse event account', pubkey.toBase58(), e);

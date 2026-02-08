@@ -85,6 +85,7 @@ export interface CreateEventArgs {
   tierName: string;
   priceLamports: number;
   supply: number;
+  artistPct?: number; // 0-80, default 40
 }
 
 export interface CreateEventResponse {

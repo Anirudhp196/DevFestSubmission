@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Navigation } from './Navigation';
 import { Calendar, Ticket, Users, X, Shield, Tag, XCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getMyTickets, getListings, listForResale, cancelListing } from '../lib/api';
+import { getMyTickets, getListings, getEvent, listForResale, cancelListing } from '../lib/api';
 import { useWallet, shortenAddress } from '../contexts/WalletContext';
 import { useConnection, useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { Transaction } from '@solana/web3.js';
@@ -37,6 +37,7 @@ export function MyTicketsPage() {
   const [listing, setListing] = useState(false);
   const [listSuccess, setListSuccess] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [eventArtistPct, setEventArtistPct] = useState(40);
 
   useEffect(() => {
     if (!connected || !publicKey) return;
@@ -69,11 +70,19 @@ export function MyTicketsPage() {
     };
   }, [connected, publicKey]);
 
-  function openResaleModal(ticket: TicketType) {
+  async function openResaleModal(ticket: TicketType) {
     setResaleTicket(ticket);
     setResalePrice(ticket.suggestedPrice?.toString() ?? (ticket.purchasePrice * 1.1).toFixed(2));
     setListSuccess(false);
     setModalError(null);
+    setEventArtistPct(40); // default
+    // Fetch event to get artistPct
+    if (ticket.eventId) {
+      try {
+        const ev = await getEvent(String(ticket.eventId));
+        if (ev?.artistPct != null) setEventArtistPct(ev.artistPct);
+      } catch { /* use default */ }
+    }
   }
 
   function closeResaleModal() {
@@ -158,9 +167,9 @@ export function MyTicketsPage() {
   }
 
   const price = Number(resalePrice) || 0;
-  const sellerCut = price * 0.4;
-  const artistCut = price * 0.4;
+  const artistCut = price * (eventArtistPct / 100);
   const platformCut = price * 0.2;
+  const sellerCut = price - artistCut - platformCut;
 
   return (
     <div className="min-h-screen bg-[#090b0b] text-[#fafaf9]">
@@ -450,18 +459,18 @@ export function MyTicketsPage() {
                   {/* Fair split preview */}
                   <div className="space-y-2">
                     <div className="text-xs text-[#87928e] font-['Inter:Medium',sans-serif] mb-1">
-                      40/40/20 Fair Split Preview
+                      {eventArtistPct}/{80 - eventArtistPct}/20 Fair Split Preview
                     </div>
                     <div className="flex gap-3">
                       <div className="flex-1 p-3 bg-[rgba(50,179,119,0.05)] border border-[rgba(50,179,119,0.2)] rounded-xl text-center">
                         <div className="text-xs text-[#87928e] mb-1 font-['Inter:Regular',sans-serif]">You get</div>
                         <div className="font-['Space_Grotesk:Bold',sans-serif] text-lg text-[#32b377]">{sellerCut.toFixed(3)}</div>
-                        <div className="text-xs text-[#87928e]">40%</div>
+                        <div className="text-xs text-[#87928e]">{80 - eventArtistPct}%</div>
                       </div>
                       <div className="flex-1 p-3 bg-[rgba(38,43,42,0.3)] border border-[#262b2a] rounded-xl text-center">
                         <div className="text-xs text-[#87928e] mb-1 font-['Inter:Regular',sans-serif]">Artist</div>
                         <div className="font-['Space_Grotesk:Bold',sans-serif] text-lg">{artistCut.toFixed(3)}</div>
-                        <div className="text-xs text-[#87928e]">40%</div>
+                        <div className="text-xs text-[#87928e]">{eventArtistPct}%</div>
                       </div>
                       <div className="flex-1 p-3 bg-[rgba(38,43,42,0.3)] border border-[#262b2a] rounded-xl text-center">
                         <div className="text-xs text-[#87928e] mb-1 font-['Inter:Regular',sans-serif]">Platform</div>

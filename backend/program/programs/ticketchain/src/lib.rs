@@ -25,11 +25,13 @@ pub mod ticketchain {
         tier_name: String,
         price_lamports: u64,
         supply: u32,
+        artist_pct: u8,
     ) -> Result<()> {
         require!(title.len() <= 64, ErrorCode::TitleTooLong);
         require!(venue.len() <= 64, ErrorCode::VenueTooLong);
         require!(tier_name.len() <= 32, ErrorCode::TierNameTooLong);
         require!(supply > 0, ErrorCode::InvalidSupply);
+        require!(artist_pct <= 80, ErrorCode::InvalidSplit);
 
         let event = &mut ctx.accounts.event;
         event.organizer = ctx.accounts.organizer.key();
@@ -41,6 +43,7 @@ pub mod ticketchain {
         event.price_lamports = price_lamports;
         event.supply = supply;
         event.sold = 0;
+        event.artist_pct = artist_pct;
 
         Ok(())
     }
@@ -126,15 +129,16 @@ pub mod ticketchain {
         Ok(())
     }
 
-    /// Buy a resale ticket. SOL is split 40/40/20 (artist / seller / platform).
+    /// Buy a resale ticket. SOL is split per the event's artist_pct / seller / 20% platform.
     /// NFT is transferred from escrow to buyer. Listing is closed.
     pub fn buy_resale(ctx: Context<BuyResale>) -> Result<()> {
         let price = ctx.accounts.listing.price_lamports;
-        let artist_share = price * 40 / 100;
-        let seller_share = price * 40 / 100;
-        let platform_share = price - artist_share - seller_share; // 20%
+        let artist_pct = ctx.accounts.event.artist_pct as u64;
+        let artist_share = price * artist_pct / 100;
+        let platform_share = price * 20 / 100;
+        let seller_share = price - artist_share - platform_share;
 
-        // 40% to organizer (artist)
+        // artist_pct% to organizer (artist)
         anchor_lang::system_program::transfer(
             CpiContext::new(
                 ctx.accounts.system_program.to_account_info(),
@@ -146,7 +150,7 @@ pub mod ticketchain {
             artist_share,
         )?;
 
-        // 40% to seller
+        // (80 - artist_pct)% to seller
         anchor_lang::system_program::transfer(
             CpiContext::new(
                 ctx.accounts.system_program.to_account_info(),
@@ -276,6 +280,7 @@ pub struct Event {
     pub price_lamports: u64,
     pub supply: u32,
     pub sold: u32,
+    pub artist_pct: u8,       // 0-80: artist's share of resale (platform always gets 20%)
 }
 
 #[account]
@@ -298,7 +303,7 @@ pub struct CreateEvent<'info> {
     #[account(
         init,
         payer = organizer,
-        space = 8 + 32 + 8 + 68 + 68 + 8 + 36 + 8 + 4 + 4,
+        space = 8 + 32 + 8 + 68 + 68 + 8 + 36 + 8 + 4 + 4 + 1,
         seeds = [b"event", organizer.key().as_ref(), &nonce.to_le_bytes()],
         bump
     )]
@@ -519,4 +524,6 @@ pub enum ErrorCode {
     InvalidSeller,
     #[msg("Invalid organizer")]
     InvalidOrganizer,
+    #[msg("Artist percentage must be 0-80")]
+    InvalidSplit,
 }

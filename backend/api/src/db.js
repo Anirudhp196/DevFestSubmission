@@ -45,6 +45,7 @@ export async function cacheEvents(events) {
     supply: e.supply,
     sold: e.sold,
     available: e.available,
+    artist_pct: e.artistPct ?? 40,
     synced_at: new Date().toISOString(),
   }));
   const { error } = await supabase

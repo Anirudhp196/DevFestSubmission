@@ -23,7 +23,8 @@
         { "name": "dateTs", "type": "i64" },
         { "name": "tierName", "type": "string" },
         { "name": "priceLamports", "type": "u64" },
-        { "name": "supply", "type": "u32" }
+        { "name": "supply", "type": "u32" },
+        { "name": "artistPct", "type": "u8" }
       ]
     },
     {
@@ -129,7 +130,8 @@
           { "name": "tierName", "type": "string" },
           { "name": "priceLamports", "type": "u64" },
           { "name": "supply", "type": "u32" },
-          { "name": "sold", "type": "u32" }
+          { "name": "sold", "type": "u32" },
+          { "name": "artistPct", "type": "u8" }
         ]
       }
     },

@@ -30,6 +30,8 @@ export function CreateEventPage() {
   const [price, setPrice] = useState('');
   const [supply, setSupply] = useState('');
 
+  const [artistPct, setArtistPct] = useState(40);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -68,6 +70,7 @@ export function CreateEventPage() {
         tierName,
         priceLamports,
         supply: supplyNum,
+        artistPct,
       });
 
       if (result.transaction) {
@@ -226,6 +229,55 @@ export function CreateEventPage() {
                     </div>
                   </div>
 
+                  {/* Resale Split */}
+                  <div className="border-t border-[#262b2a] pt-8">
+                    <h2 className="font-['Space_Grotesk:Bold',sans-serif] text-2xl mb-6 flex items-center gap-3">
+                      <div className="w-8 h-8 bg-[rgba(50,179,119,0.1)] rounded-lg flex items-center justify-center">
+                        <Shield className="w-5 h-5 text-[#32b377]" />
+                      </div>
+                      Resale Split
+                    </h2>
+                    <p className="text-sm text-[#87928e] font-['Inter:Regular',sans-serif] mb-4">
+                      When fans resell tickets, the platform takes 20%. You decide how the remaining 80% is split between you and the reseller.
+                    </p>
+
+                    <div className="mb-4">
+                      <label className="block text-xs mb-2 text-[#87928e] font-['Inter:Regular',sans-serif]">
+                        Your share: <span className="text-[#32b377] font-['Space_Grotesk:Bold',sans-serif] text-sm">{artistPct}%</span>
+                        &nbsp;&nbsp;·&nbsp;&nbsp;Seller share: <span className="text-[#fafaf9] font-['Space_Grotesk:Bold',sans-serif] text-sm">{80 - artistPct}%</span>
+                        &nbsp;&nbsp;·&nbsp;&nbsp;Platform: <span className="text-[#87928e] font-['Space_Grotesk:Bold',sans-serif] text-sm">20%</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="80"
+                        step="1"
+                        value={artistPct}
+                        onChange={(e) => setArtistPct(Number(e.target.value))}
+                        className="w-full h-2 bg-[#262b2a] rounded-lg appearance-none cursor-pointer accent-[#32b377]"
+                      />
+                      <div className="flex justify-between text-xs text-[#87928e] mt-1 font-['Inter:Regular',sans-serif]">
+                        <span>0% (all to seller)</span>
+                        <span>80% (max to you)</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <div className="flex-1 p-3 bg-[rgba(50,179,119,0.05)] border border-[rgba(50,179,119,0.2)] rounded-xl text-center">
+                        <div className="text-xs text-[#87928e] mb-1 font-['Inter:Regular',sans-serif]">You (Artist)</div>
+                        <div className="font-['Space_Grotesk:Bold',sans-serif] text-lg text-[#32b377]">{artistPct}%</div>
+                      </div>
+                      <div className="flex-1 p-3 bg-[rgba(38,43,42,0.3)] border border-[#262b2a] rounded-xl text-center">
+                        <div className="text-xs text-[#87928e] mb-1 font-['Inter:Regular',sans-serif]">Seller</div>
+                        <div className="font-['Space_Grotesk:Bold',sans-serif] text-lg">{80 - artistPct}%</div>
+                      </div>
+                      <div className="flex-1 p-3 bg-[rgba(38,43,42,0.3)] border border-[#262b2a] rounded-xl text-center">
+                        <div className="text-xs text-[#87928e] mb-1 font-['Inter:Regular',sans-serif]">Platform</div>
+                        <div className="font-['Space_Grotesk:Bold',sans-serif] text-lg">20%</div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Wallet */}
                   <div className="border-t border-[#262b2a] pt-8">
                     <div className="flex items-center gap-4 p-4 bg-[rgba(50,179,119,0.05)] border border-[rgba(50,179,119,0.2)] rounded-xl">
@@ -344,13 +396,20 @@ export function CreateEventPage() {
                   </div>
                 </div>
 
-                <div className="mt-6 pt-6 border-t border-[#262b2a] space-y-3">
+                <div className="mt-6 pt-6 border-t border-[#262b2a]">
+                  <div className="text-xs text-[#87928e] mb-2 font-['Inter:Medium',sans-serif]">Resale Split</div>
+                  <div className="text-sm font-['Inter:Medium',sans-serif] mb-4">
+                    <span className="text-[#32b377]">{artistPct}%</span> Artist · <span className="text-[#fafaf9]">{80 - artistPct}%</span> Seller · 20% Platform
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-[#262b2a] space-y-3">
                   <div className="text-sm font-['Inter:Medium',sans-serif] mb-3">On-chain features:</div>
                   {[
                     "NFT tickets minted to buyers",
                     "SOL goes directly to your wallet",
                     "Verifiable proof of attendance",
-                    "Anti-scalping protection"
+                    "Custom resale split enforced on-chain"
                   ].map((item, i) => (
                     <div key={i} className="flex items-center gap-2 text-sm text-[#87928e]">
                       <Check className="w-4 h-4 text-[#32b377] shrink-0" />
