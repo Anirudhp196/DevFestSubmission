@@ -216,116 +216,131 @@ export function MyTicketsPage() {
                   No tickets yet. Buy one from the events page.
                 </div>
               ) : (
-                <>
-                  {/* Owned tickets grid */}
-                  {tickets.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {tickets.map((ticket) => (
-                        <div
-                          key={ticket.id}
-                          className="bg-[#131615] border border-[#262b2a] rounded-2xl p-6"
-                        >
-                          <div className="flex items-start justify-between mb-4">
-                            <div>
-                              <h3 className="font-['Space_Grotesk:Bold',sans-serif] text-xl">
-                                {ticket.event}
-                              </h3>
-                              <p className="text-[#87928e] text-sm font-['Inter:Medium',sans-serif]">
-                                {ticket.artist} • {ticket.tier}
-                              </p>
-                            </div>
-                            <div className="w-10 h-10 rounded-full bg-[rgba(50,179,119,0.1)] flex items-center justify-center">
-                              <Ticket className="w-5 h-5 text-[#32b377]" />
-                            </div>
-                          </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Owned tickets */}
+                  {tickets.map((ticket) => {
+                    const listedInfo = listedTickets.find((l) => l.ticketMint && l.ticketMint === ticket.ticketMint);
+                    const isListed = !!listedInfo;
 
-                          <div className="space-y-2 text-sm text-[#87928e]">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4 text-[#32b377]" />
-                              <span>{ticket.date}</span>
-                            </div>
+                    return (
+                      <div
+                        key={ticket.id}
+                        className={`relative bg-[#131615] rounded-2xl p-6 border ${isListed ? 'border-[rgba(50,179,119,0.4)]' : 'border-[#262b2a]'}`}
+                      >
+                        {/* LISTED FOR RESALE badge */}
+                        {isListed && (
+                          <div className="mb-4 inline-flex items-center gap-2 bg-[rgba(50,179,119,0.15)] border border-[rgba(50,179,119,0.3)] text-[#32b377] text-sm font-['Inter:Medium',sans-serif] px-4 py-2 rounded-full">
+                            <Tag className="w-4 h-4" />
+                            LISTED FOR RESALE
+                          </div>
+                        )}
+
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="font-['Space_Grotesk:Bold',sans-serif] text-xl">
+                              {ticket.event}
+                            </h3>
+                            <p className="text-[#87928e] text-sm font-['Inter:Medium',sans-serif] mt-1">
+                              {ticket.artist} • {ticket.tier}
+                            </p>
+                          </div>
+                          <div className="w-10 h-10 rounded-full bg-[rgba(50,179,119,0.1)] flex items-center justify-center shrink-0 ml-4">
+                            <Ticket className="w-5 h-5 text-[#32b377]" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-3 text-sm text-[#87928e]">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-[#32b377]" />
+                            <span>{ticket.date}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Paid</span>
+                            <span className="text-[#fafaf9]">{ticket.purchasePrice} SOL</span>
+                          </div>
+                          {isListed && listedInfo && (
                             <div className="flex items-center justify-between">
-                              <span>Paid</span>
-                              <span className="text-[#fafaf9]">{ticket.purchasePrice} SOL</span>
+                              <span>Listing Price</span>
+                              <span className="text-[#32b377] font-['Space_Grotesk:Bold',sans-serif]">{listedInfo.currentPrice} SOL</span>
                             </div>
-                          </div>
+                          )}
+                        </div>
 
-                          <div className="mt-5 flex items-center gap-3">
-                            {ticket.eventId != null && (
-                              <Link
-                                to={`/events/${ticket.eventId}/attendees`}
-                                className="inline-flex items-center gap-2 text-sm text-[#32b377] hover:text-[#2a9865]"
-                              >
-                                <Users className="w-4 h-4" />
-                                View attendees
-                              </Link>
-                            )}
+                        <div className="mt-6 pt-4 border-t border-[#262b2a] flex items-center gap-3">
+                          {ticket.eventId != null && (
+                            <Link
+                              to={`/events/${ticket.eventId}/attendees`}
+                              className="inline-flex items-center gap-2 text-sm text-[#32b377] hover:text-[#2a9865]"
+                            >
+                              <Users className="w-4 h-4" />
+                              View attendees
+                            </Link>
+                          )}
+                          {isListed && listedInfo ? (
+                            <button
+                              onClick={() => handleCancelListing(listedInfo)}
+                              disabled={cancellingMint === listedInfo.ticketMint}
+                              className="ml-auto inline-flex items-center gap-1.5 text-sm text-[#ff6464] hover:text-[#ff4444] disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-['Inter:Medium',sans-serif]"
+                            >
+                              <XCircle className="w-4 h-4" />
+                              {cancellingMint === listedInfo.ticketMint ? 'Cancelling...' : 'Cancel Listing'}
+                            </button>
+                          ) : (
                             <button
                               onClick={() => openResaleModal(ticket)}
                               className="ml-auto text-sm text-[#87928e] hover:text-[#32b377] transition-colors font-['Inter:Medium',sans-serif]"
                             >
                               List for resale
                             </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Listed tickets that don't match any owned ticket (e.g. from chain) */}
+                  {listedTickets
+                    .filter((listed) => !tickets.some((t) => t.ticketMint && t.ticketMint === listed.ticketMint))
+                    .map((listed) => (
+                      <div
+                        key={listed.id}
+                        className="relative bg-[#131615] border border-[rgba(50,179,119,0.4)] rounded-2xl p-6"
+                      >
+                        <div className="mb-4 inline-flex items-center gap-2 bg-[rgba(50,179,119,0.15)] border border-[rgba(50,179,119,0.3)] text-[#32b377] text-sm font-['Inter:Medium',sans-serif] px-4 py-2 rounded-full">
+                          <Tag className="w-4 h-4" />
+                          LISTED FOR RESALE
+                        </div>
+
+                        <div className="flex items-start justify-between mb-4">
+                          <h3 className="font-['Space_Grotesk:Bold',sans-serif] text-xl">
+                            {listed.event ?? 'Event'}
+                          </h3>
+                          <div className="w-10 h-10 rounded-full bg-[rgba(50,179,119,0.1)] flex items-center justify-center shrink-0 ml-4">
+                            <Ticket className="w-5 h-5 text-[#32b377]" />
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
 
-                  {/* Listed for Resale section */}
-                  {listedTickets.length > 0 && (
-                    <div className="mt-12">
-                      <h2 className="font-['Space_Grotesk:Bold',sans-serif] text-2xl mb-6">
-                        Listed for <span className="text-[#32b377]">Resale</span>
-                      </h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {listedTickets.map((listed) => (
-                          <div
-                            key={listed.id}
-                            className="bg-[#131615] border border-[rgba(50,179,119,0.3)] rounded-2xl p-6"
-                          >
-                            <div className="flex items-start justify-between mb-4">
-                              <div>
-                                <h3 className="font-['Space_Grotesk:Bold',sans-serif] text-xl">
-                                  {listed.event ?? 'Event'}
-                                </h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Tag className="w-3.5 h-3.5 text-[#32b377]" />
-                                  <span className="text-[#87928e] text-sm font-['Inter:Medium',sans-serif]">
-                                    On marketplace
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="w-10 h-10 rounded-full bg-[rgba(50,179,119,0.1)] flex items-center justify-center">
-                                <Tag className="w-5 h-5 text-[#32b377]" />
-                              </div>
-                            </div>
-
-                            <div className="space-y-2 text-sm text-[#87928e]">
-                              <div className="flex items-center justify-between">
-                                <span>Listing Price</span>
-                                <span className="text-[#32b377] font-['Space_Grotesk:Bold',sans-serif] text-lg">
-                                  {listed.currentPrice} SOL
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="mt-5">
-                              <button
-                                onClick={() => handleCancelListing(listed)}
-                                disabled={cancellingMint === listed.ticketMint}
-                                className="w-full flex items-center justify-center gap-2 border border-[rgba(255,100,100,0.3)] hover:border-[rgba(255,100,100,0.6)] bg-[rgba(255,100,100,0.05)] hover:bg-[rgba(255,100,100,0.1)] disabled:opacity-60 disabled:cursor-not-allowed transition-all px-4 py-2.5 rounded-xl text-sm text-[#ff6464] font-['Inter:Medium',sans-serif]"
-                              >
-                                <XCircle className="w-4 h-4" />
-                                {cancellingMint === listed.ticketMint ? 'Cancelling...' : 'Cancel Listing'}
-                              </button>
-                            </div>
+                        <div className="space-y-3 text-sm text-[#87928e]">
+                          <div className="flex items-center justify-between">
+                            <span>Listing Price</span>
+                            <span className="text-[#32b377] font-['Space_Grotesk:Bold',sans-serif]">{listed.currentPrice} SOL</span>
                           </div>
-                        ))}
+                        </div>
+
+                        <div className="mt-6 pt-4 border-t border-[#262b2a]">
+                          <button
+                            onClick={() => handleCancelListing(listed)}
+                            disabled={cancellingMint === listed.ticketMint}
+                            className="inline-flex items-center gap-1.5 text-sm text-[#ff6464] hover:text-[#ff4444] disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-['Inter:Medium',sans-serif]"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            {cancellingMint === listed.ticketMint ? 'Cancelling...' : 'Cancel Listing'}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </>
+                    ))
+                  }
+                </div>
               )}
             </>
           )}
