@@ -93,6 +93,16 @@
         { "name": "systemProgram", "address": "11111111111111111111111111111111" }
       ],
       "args": []
+    },
+    {
+      "name": "closeEvent",
+      "discriminator": [117, 114, 193, 54, 49, 25, 75, 194],
+      "accounts": [
+        { "name": "organizer", "writable": true, "signer": true },
+        { "name": "event", "writable": true },
+        { "name": "systemProgram", "address": "11111111111111111111111111111111" }
+      ],
+      "args": []
     }
   ],
   "accounts": [

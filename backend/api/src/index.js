@@ -12,6 +12,7 @@ import { dirname, join } from 'path';
 import {
   buildBuyTicketTransaction,
   buildCreateEventTransaction,
+  buildCloseEventTransaction,
   buildListForResaleTransaction,
   buildBuyResaleTransaction,
   buildCancelListingTransaction,
@@ -259,6 +260,34 @@ app.post('/api/events', async (req, res) => {
   } catch (e) {
     console.error('create_event build failed', e);
     res.status(500).json({ error: e.message ?? 'Failed to build create_event transaction' });
+  }
+});
+
+/**
+ * DELETE /api/events — build close_event transaction.
+ * Body: { organizerPubkey, eventPubkey }
+ * Only the original organizer can close (delete) an event.
+ */
+app.delete('/api/events', async (req, res) => {
+  const { organizerPubkey, eventPubkey } = req.body ?? {};
+  if (!organizerPubkey || !eventPubkey) {
+    return res.status(400).json({ error: 'Missing required fields: organizerPubkey, eventPubkey' });
+  }
+  try {
+    const transaction = await buildCloseEventTransaction(organizerPubkey, eventPubkey);
+
+    // Also remove from local in-memory list if present
+    const idx = onChainEvents.findIndex((e) => e.eventPubkey === eventPubkey);
+    if (idx !== -1) onChainEvents.splice(idx, 1);
+    eventIdToPubkey.forEach((val, key) => {
+      if (val === eventPubkey) eventIdToPubkey.delete(key);
+    });
+    saveData();
+
+    res.json({ transaction, message: 'Sign and submit to delete the event. Rent SOL will be returned.' });
+  } catch (e) {
+    console.error('close_event build failed', e);
+    res.status(500).json({ error: e.message ?? 'Failed to build close_event transaction' });
   }
 });
 

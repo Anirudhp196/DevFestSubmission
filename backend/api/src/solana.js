@@ -176,6 +176,32 @@ export async function buildCreateEventTransaction(organizerPubkey, args) {
   };
 }
 
+/**
+ * Build close_event transaction. Only the organizer can close their event.
+ * Returns base64 serialized tx for the organizer to sign.
+ */
+export async function buildCloseEventTransaction(organizerPubkey, eventPubkey) {
+  const connection = getConnection();
+  const program = getProgram(connection);
+  const organizerPk = new PublicKey(organizerPubkey);
+  const eventPk = new PublicKey(eventPubkey);
+
+  const tx = await program.methods
+    .closeEvent()
+    .accounts({
+      organizer: organizerPk,
+      event: eventPk,
+      systemProgram: SYSTEM_PROGRAM_ID,
+    })
+    .transaction();
+
+  tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+  tx.feePayer = organizerPk;
+
+  const serialized = tx.serialize({ requireAllSignatures: false });
+  return serialized.toString('base64');
+}
+
 // ── Resale functions ────────────────────────────────────────────────
 
 /**

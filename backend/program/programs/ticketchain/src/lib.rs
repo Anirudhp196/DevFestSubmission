@@ -253,6 +253,14 @@ pub mod ticketchain {
         // Listing PDA is closed via `close = seller`
         Ok(())
     }
+
+    /// Close an event. Only the organizer can call this.
+    /// Rent SOL is returned to the organizer. No tickets must have been sold.
+    pub fn close_event(_ctx: Context<CloseEvent>) -> Result<()> {
+        // The `close = organizer` constraint on the event account
+        // handles closing the account and returning rent.
+        Ok(())
+    }
 }
 
 // ── Account structs ──────────────────────────────────────────────────
@@ -471,6 +479,21 @@ pub struct CancelListing<'info> {
 
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct CloseEvent<'info> {
+    #[account(mut)]
+    pub organizer: Signer<'info>,
+
+    #[account(
+        mut,
+        constraint = event.organizer == organizer.key() @ ErrorCode::InvalidOrganizer,
+        close = organizer,
+    )]
+    pub event: Account<'info, Event>,
+
     pub system_program: Program<'info, System>,
 }
 
