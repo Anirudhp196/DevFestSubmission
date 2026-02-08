@@ -18,9 +18,12 @@
 import { motion } from 'motion/react';
 import { Navigation } from './Navigation';
 import { Check, X, Shield, Zap, Users, Lock, TrendingUp, Code } from 'lucide-react';
-import { useEffect } from 'react';
+import { useWallet, shortenAddress } from '../contexts/WalletContext';
+import svgPaths from '../imports/svg-y53m400yen';
 
 export function AboutPage() {
+  const { connected, connecting, publicKey, balance, connect, disconnect } = useWallet();
+
   return (
     <div className="min-h-screen bg-[#090b0b] text-[#fafaf9]">
       <Navigation />
@@ -346,12 +349,42 @@ export function AboutPage() {
               This is just the beginning. Join us in revolutionizing live events.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-[#32b377] hover:bg-[#2a9865] transition-all px-10 py-5 rounded-xl font-['Inter:Medium',sans-serif] text-lg text-[#090b0b] shadow-lg hover:shadow-[0_0_30px_rgba(50,179,119,0.4)]">
-                Connect Wallet
-              </button>
-              <button className="border border-[#262b2a] hover:border-[#32b377] transition-all px-10 py-5 rounded-xl font-['Inter:Medium',sans-serif] text-lg text-[#fafaf9] hover:bg-[rgba(50,179,119,0.05)]">
+              {connected && publicKey ? (
+                <div className="flex items-center gap-4 bg-[#131615] border border-[#262b2a] px-8 py-4 rounded-xl">
+                  <span className="font-['Inter:Medium',sans-serif] text-lg text-[#87928e]">
+                    {shortenAddress(publicKey)}
+                  </span>
+                  <span className="font-['Inter:Medium',sans-serif] text-lg text-[#32b377]">
+                    ◎ {balance}
+                  </span>
+                  <button
+                    onClick={disconnect}
+                    className="bg-[#262b2a] hover:bg-[#1a1e1d] transition-all px-6 py-3 rounded-lg font-['Inter:Medium',sans-serif] text-lg text-[#fafaf9] border border-[#262b2a]"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={connect}
+                  disabled={connecting}
+                  className="bg-[#32b377] hover:bg-[#2a9865] disabled:opacity-60 transition-all px-10 py-5 rounded-xl font-['Inter:Medium',sans-serif] text-lg text-[#090b0b] flex items-center justify-center gap-3 shadow-lg hover:shadow-[0_0_30px_rgba(50,179,119,0.4)]"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 16 16">
+                    <path d={svgPaths.p323831} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.33333" />
+                    <path d={svgPaths.pc65f180} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.33333" />
+                  </svg>
+                  {connecting ? 'Connecting…' : 'Connect Wallet'}
+                </button>
+              )}
+              <a
+                href="https://github.com/Anirudhp196/TicketChain"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="border border-[#262b2a] hover:border-[#32b377] transition-all px-10 py-5 rounded-xl font-['Inter:Medium',sans-serif] text-lg text-[#fafaf9] hover:bg-[rgba(50,179,119,0.05)] text-center"
+              >
                 View on GitHub
-              </button>
+              </a>
             </div>
           </motion.div>
         </div>
