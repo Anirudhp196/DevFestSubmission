@@ -19,6 +19,7 @@ import { motion } from 'motion/react';
 import { Navigation } from './Navigation';
 import svgPaths from '../imports/svg-y53m400yen';
 import { Link } from 'react-router-dom';
+import logoImg from './assets/dalogonew.png';
 import { ArrowRight, Ticket, Shield, Users, Zap, Star, TrendingUp } from 'lucide-react';
 
 export function LandingPage() {
@@ -337,16 +338,14 @@ export function LandingPage() {
       <footer className="border-t border-[#262b2a] py-8 px-8">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#32b377] rounded-full flex items-center justify-center">
-              <span className="text-[#090b0b] font-bold">T</span>
-            </div>
+            <img src={logoImg} alt="TicketChain" className="h-8 w-auto object-contain" />
             <span className="text-[#87928e] text-sm font-['Inter:Regular',sans-serif]">
               Fair event ticketing on Solana. Built by fans, for fans.
             </span>
           </div>
           <div className="flex gap-6 text-[#87928e] text-sm">
-            <a href="#" className="hover:text-[#32b377] transition-colors">Docs</a>
-            <a href="#" className="hover:text-[#32b377] transition-colors">GitHub</a>
+            <Link to="/about" className="hover:text-[#32b377] transition-colors">Docs</Link>
+            <a href="https://github.com/Anirudhp196/TicketChain" target="_blank" rel="noopener noreferrer" className="hover:text-[#32b377] transition-colors">GitHub</a>
             <a href="#" className="hover:text-[#32b377] transition-colors">Twitter</a>
           </div>
         </div>
