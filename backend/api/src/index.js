@@ -8,6 +8,7 @@
  *   If Supabase is not configured, falls back to direct chain reads + in-memory.
  */
 
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import {
