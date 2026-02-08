@@ -19,7 +19,7 @@ import { Navigation } from './Navigation';
 import { Wallet, TrendingUp, Shield, DollarSign, ArrowLeft, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { getMyTickets, listForResale } from '../lib/api';
+import { getMyTickets, listForResale, confirmListing } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import { useConnection, useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
@@ -78,7 +78,7 @@ export function ListTicketPage() {
     setIsListing(true);
     setListError(null);
     try {
-      const { transaction: txBase64 } = await listForResale(
+      const { transaction: txBase64, listingPubkey } = await listForResale(
         publicKey,
         ticket.eventPubkey,
         ticket.ticketMint,
@@ -88,6 +88,17 @@ export function ListTicketPage() {
       const signed = await solanaWallet.signTransaction(tx);
       const sig = await connection.sendRawTransaction(signed.serialize());
       await connection.confirmTransaction(sig, 'confirmed');
+      try {
+        await confirmListing(
+          listingPubkey,
+          publicKey,
+          ticket.eventPubkey,
+          ticket.ticketMint,
+          priceSol,
+        );
+      } catch (e) {
+        console.error('Failed to confirm listing cache:', e);
+      }
       navigate('/marketplace#listings');
     } catch (e) {
       setListError(e instanceof Error ? e.message : 'Failed to list ticket');

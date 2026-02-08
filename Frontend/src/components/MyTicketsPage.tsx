@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Navigation } from './Navigation';
 import { Calendar, Ticket, Users, X, Shield, Tag, XCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getMyTickets, getListings, getEvent, listForResale, cancelListing } from '../lib/api';
+import { getMyTickets, getListings, getEvent, listForResale, cancelListing, confirmListing, confirmCancelListing } from '../lib/api';
 import { useWallet, shortenAddress } from '../contexts/WalletContext';
 import { useConnection, useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { Transaction } from '@solana/web3.js';
@@ -104,6 +104,11 @@ export function MyTicketsPage() {
       const signed = await wallet.signTransaction(tx);
       const sig = await connection.sendRawTransaction(signed.serialize());
       await connection.confirmTransaction(sig, 'confirmed');
+      try {
+        await confirmCancelListing(listed.ticketMint);
+      } catch (e) {
+        console.error('Failed to confirm listing cancel cache:', e);
+      }
       // Remove from local state
       setListedTickets((prev) => prev.filter((l) => l.ticketMint !== listed.ticketMint));
     } catch (e) {
@@ -145,7 +150,7 @@ export function MyTicketsPage() {
     setListing(true);
     try {
       // 1. Build the list_for_resale transaction via API
-      const { transaction: txBase64 } = await listForResale(
+      const { transaction: txBase64, listingPubkey } = await listForResale(
         publicKey,
         resaleTicket.eventPubkey,
         resaleTicket.ticketMint,
@@ -157,6 +162,17 @@ export function MyTicketsPage() {
       const signed = await wallet.signTransaction(tx);
       const sig = await connection.sendRawTransaction(signed.serialize());
       await connection.confirmTransaction(sig, 'confirmed');
+      try {
+        await confirmListing(
+          listingPubkey,
+          publicKey,
+          resaleTicket.eventPubkey,
+          resaleTicket.ticketMint,
+          priceSol,
+        );
+      } catch (e) {
+        console.error('Failed to confirm listing cache:', e);
+      }
 
       setListSuccess(true);
     } catch (e) {

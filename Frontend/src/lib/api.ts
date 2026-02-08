@@ -221,6 +221,25 @@ export async function listForResale(
   return res.json();
 }
 
+export async function confirmListing(
+  listingPubkey: string,
+  sellerWallet: string,
+  eventPubkey: string,
+  ticketMint: string,
+  priceSol: number,
+): Promise<{ success: boolean }> {
+  const res = await apiFetch('/api/listings/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ listingPubkey, sellerWallet, eventPubkey, ticketMint, priceSol }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error?.error ?? 'Failed to confirm listing');
+  }
+  return res.json();
+}
+
 export interface BuyResaleResponse {
   transaction: string;
   message?: string;
@@ -249,6 +268,19 @@ export async function cancelListing(sellerWallet: string, ticketMint: string): P
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
     throw new Error(error?.error ?? 'Failed to build cancel listing transaction');
+  }
+  return res.json();
+}
+
+export async function confirmCancelListing(ticketMint: string): Promise<{ success: boolean }> {
+  const res = await apiFetch('/api/listings/cancel/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ticketMint }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error?.error ?? 'Failed to confirm cancel listing');
   }
   return res.json();
 }

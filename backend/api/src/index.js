@@ -32,6 +32,8 @@ import {
   getPurchasesByWallet,
   getPurchasesByEvent,
   getCachedListings,
+  upsertListing,
+  removeListingByTicketMint,
 } from './db.js';
 import { startSync, triggerSync } from './sync.js';
 
@@ -503,6 +505,32 @@ app.post('/api/listings', async (req, res) => {
   }
 });
 
+// Confirm a listing after on-chain tx is confirmed (optimistic cache update)
+app.post('/api/listings/confirm', async (req, res) => {
+  const { listingPubkey, sellerWallet, eventPubkey, ticketMint, priceSol } = req.body ?? {};
+  if (!listingPubkey || !sellerWallet || !eventPubkey || !ticketMint || priceSol == null) {
+    return res.status(400).json({
+      error: 'Missing required fields: listingPubkey, sellerWallet, eventPubkey, ticketMint, priceSol',
+    });
+  }
+  try {
+    const priceLamports = Math.round(Number(priceSol) * 1e9);
+    await upsertListing({
+      pubkey: listingPubkey,
+      seller: sellerWallet,
+      event: eventPubkey,
+      ticketMint,
+      priceLamports,
+      priceSol: Number(priceSol),
+    });
+    res.json({ success: true });
+    triggerSync();
+  } catch (e) {
+    console.error('POST /api/listings/confirm failed:', e.message);
+    res.status(500).json({ error: 'Failed to confirm listing' });
+  }
+});
+
 app.post('/api/listings/buy', async (req, res) => {
   const { buyerWallet, ticketMint } = req.body ?? {};
   if (!buyerWallet || !ticketMint) {
@@ -572,6 +600,7 @@ app.post('/api/listings/buy/confirm', async (req, res) => {
     }
 
     res.json({ success: true, message: 'Purchase record transferred to buyer' });
+    await removeListingByTicketMint(ticketMint);
     triggerSync();
   } catch (e) {
     console.error('POST /api/listings/buy/confirm failed:', e.message);
@@ -591,6 +620,22 @@ app.delete('/api/listings', async (req, res) => {
   } catch (e) {
     console.error('cancel_listing build failed', e);
     res.status(500).json({ error: e.message ?? 'Failed to build cancel_listing transaction' });
+  }
+});
+
+// Confirm listing cancellation — remove listing from cache immediately
+app.post('/api/listings/cancel/confirm', async (req, res) => {
+  const { ticketMint } = req.body ?? {};
+  if (!ticketMint) {
+    return res.status(400).json({ error: 'Missing required field: ticketMint' });
+  }
+  try {
+    await removeListingByTicketMint(ticketMint);
+    res.json({ success: true });
+    triggerSync();
+  } catch (e) {
+    console.error('POST /api/listings/cancel/confirm failed:', e.message);
+    res.status(500).json({ error: 'Failed to confirm cancel listing' });
   }
 });
 

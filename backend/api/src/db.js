@@ -251,3 +251,35 @@ export async function replaceCachedListings(listings) {
     await cacheListings(listings);
   }
 }
+
+/**
+ * Upsert a single listing into the cache (optimistic update).
+ */
+export async function upsertListing(listing) {
+  if (!supabase) return;
+  const row = {
+    listing_pubkey: listing.pubkey,
+    seller: listing.seller,
+    event_pubkey: listing.event,
+    ticket_mint: listing.ticketMint,
+    price_lamports: listing.priceLamports,
+    price_sol: listing.priceSol,
+    synced_at: new Date().toISOString(),
+  };
+  const { error } = await supabase
+    .from('listings')
+    .upsert(row, { onConflict: 'listing_pubkey' });
+  if (error) console.error('upsertListing error:', error.message);
+}
+
+/**
+ * Remove a listing from the cache by ticket mint.
+ */
+export async function removeListingByTicketMint(ticketMint) {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from('listings')
+    .delete()
+    .eq('ticket_mint', ticketMint);
+  if (error) console.error('removeListingByTicketMint error:', error.message);
+}
