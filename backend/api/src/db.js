@@ -185,6 +185,23 @@ export async function getPurchasesByEvent(eventId) {
   return data;
 }
 
+/**
+ * Transfer a purchase record from seller to buyer (resale).
+ * Updates the wallet, price, and signature on the existing record.
+ */
+export async function transferPurchase(ticketMint, buyerWallet, resalePrice, signature) {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from('purchases')
+    .update({
+      wallet: buyerWallet,
+      purchase_price: resalePrice,
+      signature,
+    })
+    .eq('ticket_mint', ticketMint);
+  if (error) console.error('transferPurchase error:', error.message);
+}
+
 // ── Listings ──────────────────────────────────────────────────────────
 
 /**

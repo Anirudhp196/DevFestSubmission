@@ -19,7 +19,7 @@ import { motion } from 'motion/react';
 import { Navigation } from './Navigation';
 import { TrendingUp, TrendingDown, Clock, Shield, Star, DollarSign, Users, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getListings, buyResale } from '../lib/api';
+import { getListings, buyResale, confirmResalePurchase } from '../lib/api';
 import { useWallet } from '../contexts/WalletContext';
 import { useConnection, useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { Transaction } from '@solana/web3.js';
@@ -54,6 +54,20 @@ export function MarketplacePage() {
       const signed = await wallet.signTransaction(tx);
       const sig = await connection.sendRawTransaction(signed.serialize());
       await connection.confirmTransaction(sig, 'confirmed');
+
+      // Transfer the purchase record from seller to buyer
+      try {
+        await confirmResalePurchase(
+          publicKey,
+          listing.ticketMint,
+          sig,
+          listing.eventPubkey,
+          listing.currentPrice,
+        );
+      } catch (e) {
+        console.error('Failed to confirm resale purchase record:', e);
+      }
+
       alert(`Purchase successful! Signature: ${sig.slice(0, 20)}...`);
       // Refresh listings
       const data = await getListings();

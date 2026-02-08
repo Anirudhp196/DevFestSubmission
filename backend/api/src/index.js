@@ -28,6 +28,7 @@ import {
   getCachedEvent,
   removeCachedEvent,
   addPurchase,
+  transferPurchase,
   getPurchasesByWallet,
   getPurchasesByEvent,
   getCachedListings,
@@ -514,6 +515,67 @@ app.post('/api/listings/buy', async (req, res) => {
   } catch (e) {
     console.error('buy_resale build failed', e);
     res.status(500).json({ error: e.message ?? 'Failed to build buy_resale transaction' });
+  }
+});
+
+// Confirm a resale purchase — transfer the purchase record from seller to buyer
+app.post('/api/listings/buy/confirm', async (req, res) => {
+  const { buyerWallet, ticketMint, signature, eventPubkey, price } = req.body ?? {};
+  if (!buyerWallet || !ticketMint || !signature) {
+    return res.status(400).json({ error: 'Missing required fields: buyerWallet, ticketMint, signature' });
+  }
+  try {
+    // Transfer the Supabase purchase record to the new owner
+    await transferPurchase(ticketMint, buyerWallet, price ?? 0, signature);
+
+    // Also update in-memory fallback
+    const existing = inMemoryPurchases.find((p) => p.ticketMint === ticketMint);
+    if (existing) {
+      existing.wallet = buyerWallet;
+      existing.purchasePrice = price ?? existing.purchasePrice;
+      existing.signature = signature;
+    } else {
+      // Create a new in-memory record if none exists (e.g. purchased externally)
+      let eventTitle = 'On-chain Event';
+      let eventDate = 'TBD';
+      let eventTier = 'General Admission';
+      let evPk = eventPubkey ?? null;
+
+      // Try to get event info
+      if (evPk) {
+        const cached = await getCachedEvents();
+        if (cached) {
+          const match = cached.find((r) => r.event_pubkey === evPk);
+          if (match) {
+            eventTitle = match.title;
+            eventDate = match.date_display;
+            eventTier = match.tier_name ?? 'General Admission';
+          }
+        }
+      }
+
+      inMemoryPurchases.push({
+        id: nextTicketId++,
+        eventId: evPk ? `chain-${evPk.slice(0, 8)}` : null,
+        event: eventTitle,
+        artist: 'On-chain Event',
+        date: eventDate,
+        tier: eventTier,
+        purchasePrice: price ?? 0,
+        suggestedPrice: price ? Number((price * 1.1).toFixed(2)) : 0,
+        eventPubkey: evPk,
+        ticketMint,
+        wallet: buyerWallet,
+        signature,
+        purchasedAt: new Date().toISOString(),
+      });
+    }
+
+    res.json({ success: true, message: 'Purchase record transferred to buyer' });
+    triggerSync();
+  } catch (e) {
+    console.error('POST /api/listings/buy/confirm failed:', e.message);
+    res.status(500).json({ error: 'Failed to confirm resale purchase' });
   }
 });
 

@@ -76,10 +76,11 @@ export function MyTicketsPage() {
     setListSuccess(false);
     setModalError(null);
     setEventArtistPct(40); // default
-    // Fetch event to get artistPct
-    if (ticket.eventId) {
+    // Fetch event to get artistPct — try eventPubkey first (most reliable), then eventId
+    const lookupId = ticket.eventPubkey ?? (ticket.eventId ? String(ticket.eventId) : null);
+    if (lookupId) {
       try {
-        const ev = await getEvent(String(ticket.eventId));
+        const ev = await getEvent(lookupId);
         if (ev?.artistPct != null) setEventArtistPct(ev.artistPct);
       } catch { /* use default */ }
     }

@@ -265,3 +265,23 @@ export async function buyResale(buyerWallet: string, ticketMint: string): Promis
   }
   return res.json();
 }
+
+/** Confirm a resale purchase — transfers the purchase record from seller to buyer */
+export async function confirmResalePurchase(
+  buyerWallet: string,
+  ticketMint: string,
+  signature: string,
+  eventPubkey?: string,
+  price?: number,
+): Promise<{ success: boolean }> {
+  const res = await apiFetch('/api/listings/buy/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ buyerWallet, ticketMint, signature, eventPubkey, price }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error?.error ?? 'Failed to confirm resale purchase');
+  }
+  return res.json();
+}
