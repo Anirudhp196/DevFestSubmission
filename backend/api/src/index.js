@@ -526,7 +526,7 @@ app.post('/api/listings/buy/confirm', async (req, res) => {
   }
   try {
     // Transfer the Supabase purchase record to the new owner
-    await transferPurchase(ticketMint, buyerWallet, price ?? 0, signature);
+    const updated = await transferPurchase(ticketMint, buyerWallet, price ?? 0, signature);
 
     // Also update in-memory fallback
     const existing = inMemoryPurchases.find((p) => p.ticketMint === ticketMint);
@@ -534,6 +534,9 @@ app.post('/api/listings/buy/confirm', async (req, res) => {
       existing.wallet = buyerWallet;
       existing.purchasePrice = price ?? existing.purchasePrice;
       existing.signature = signature;
+      if (!updated) {
+        await addPurchase(existing);
+      }
     } else {
       // Create a new in-memory record if none exists (e.g. purchased externally)
       let eventTitle = 'On-chain Event';
@@ -554,7 +557,7 @@ app.post('/api/listings/buy/confirm', async (req, res) => {
         }
       }
 
-      inMemoryPurchases.push({
+      const ticketRecord = {
         id: nextTicketId++,
         eventId: evPk ? `chain-${evPk.slice(0, 8)}` : null,
         event: eventTitle,
@@ -568,7 +571,11 @@ app.post('/api/listings/buy/confirm', async (req, res) => {
         wallet: buyerWallet,
         signature,
         purchasedAt: new Date().toISOString(),
-      });
+      };
+      inMemoryPurchases.push(ticketRecord);
+      if (!updated) {
+        await addPurchase(ticketRecord);
+      }
     }
 
     res.json({ success: true, message: 'Purchase record transferred to buyer' });

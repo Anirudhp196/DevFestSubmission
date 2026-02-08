@@ -190,16 +190,21 @@ export async function getPurchasesByEvent(eventId) {
  * Updates the wallet, price, and signature on the existing record.
  */
 export async function transferPurchase(ticketMint, buyerWallet, resalePrice, signature) {
-  if (!supabase) return;
-  const { error } = await supabase
+  if (!supabase) return false;
+  const { data, error } = await supabase
     .from('purchases')
     .update({
       wallet: buyerWallet,
       purchase_price: resalePrice,
       signature,
     })
-    .eq('ticket_mint', ticketMint);
-  if (error) console.error('transferPurchase error:', error.message);
+    .eq('ticket_mint', ticketMint)
+    .select('id');
+  if (error) {
+    console.error('transferPurchase error:', error.message);
+    return false;
+  }
+  return Array.isArray(data) ? data.length > 0 : false;
 }
 
 // ── Listings ──────────────────────────────────────────────────────────
