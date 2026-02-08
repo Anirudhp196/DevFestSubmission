@@ -1,7 +1,7 @@
 
-  # Create Engaging Frontpage Design
+  # TicketChain
 
-  This is a code bundle for Create Engaging Frontpage Design. The original project is available at https://www.figma.com/design/SSOGQlATS0vU4RGTP879qo/Create-Engaging-Frontpage-Design.
+  This repository contains the TicketChain frontend. The original UI started from a design bundle but has been adapted for this project.
 
   ## Running the code
 
