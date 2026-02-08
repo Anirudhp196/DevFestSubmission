@@ -21,9 +21,11 @@ import { Navigation } from './Navigation';
 import { Calendar, MapPin, Users, Star, TrendingUp, Search, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getEvents } from '../lib/api';
+import { useWallet } from '../contexts/WalletContext';
 import type { Event } from '../types';
 
 export function EventsPage() {
+  const { publicKey } = useWallet();
   const [events, setEvents] = useState<Event[]>([]);
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,9 +193,21 @@ export function EventsPage() {
                     </div>
                   </div>
                   
+                  {/* Your Event Badge */}
+                  {publicKey && event.organizerPubkey === publicKey && (
+                    <div className="absolute top-4 left-4 z-10">
+                      <div className="px-3 py-1.5 rounded-full bg-[rgba(99,102,241,0.25)] border border-[rgba(99,102,241,0.4)] backdrop-blur-sm flex items-center gap-1.5">
+                        <Star className="w-3.5 h-3.5 text-[#818cf8] fill-[#818cf8]" />
+                        <span className="text-[#a5b4fc] text-xs font-['Inter:Medium',sans-serif]">
+                          Your Event
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Loyalty Badge Requirement */}
                   {event.loyaltyRequired && (
-                    <div className="absolute top-4 left-4">
+                    <div className={`absolute ${publicKey && event.organizerPubkey === publicKey ? 'top-12 left-4' : 'top-4 left-4'}`}>
                       <div className="px-3 py-1.5 rounded-full bg-[rgba(255,200,100,0.2)] border border-[rgba(255,200,100,0.3)] flex items-center gap-1.5">
                         <Star className="w-3.5 h-3.5 text-[#ffc864] fill-[#ffc864]" />
                         <span className="text-[#ffc864] text-xs font-['Inter:Medium',sans-serif]">
