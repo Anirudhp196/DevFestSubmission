@@ -10,7 +10,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Navigation } from './Navigation';
-import { Calendar, Ticket, Users, X, Shield, Tag, XCircle } from 'lucide-react';
+import { Calendar, Ticket, Users, X, Shield, Tag, XCircle, Wallet } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getMyTickets, getListings, getEvent, listForResaleBatch, cancelListing, confirmCancelListing } from '../lib/api';
 import { useWallet, shortenAddress } from '../contexts/WalletContext';
@@ -255,15 +255,32 @@ export function MyTicketsPage() {
       <section className="py-16 px-8">
         <div className="max-w-5xl mx-auto">
           {!connected && (
-            <div className="p-6 bg-[rgba(255,200,100,0.1)] border border-[rgba(255,200,100,0.3)] rounded-xl text-[#ffc864] font-['Inter:Medium',sans-serif]">
-              Connect your wallet to view tickets.
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="flex flex-col items-center justify-center py-24 text-center"
+            >
+              <div className="w-20 h-20 bg-[rgba(50,179,119,0.1)] rounded-2xl flex items-center justify-center mb-8">
+                <Ticket className="w-10 h-10 text-[#32b377]" />
+              </div>
+              <h2 className="font-['Space_Grotesk:Bold',sans-serif] text-3xl mb-3">
+                Your tickets live in your wallet
+              </h2>
+              <p className="text-[#87928e] text-lg font-['Inter:Regular',sans-serif] max-w-md mb-8 leading-relaxed">
+                Connect your Solana wallet to see your NFT tickets, list them for resale, or check into events.
+              </p>
               <button
                 onClick={connect}
-                className="ml-4 bg-[#32b377] hover:bg-[#2a9865] transition-all px-4 py-2 rounded-lg text-[#090b0b] text-sm"
+                className="bg-[#32b377] hover:bg-[#2a9865] transition-all px-8 py-4 rounded-xl font-['Inter:Medium',sans-serif] text-lg text-[#090b0b] shadow-lg hover:shadow-[0_0_20px_rgba(50,179,119,0.3)] flex items-center gap-3"
               >
+                <Wallet className="w-5 h-5" />
                 Connect Wallet
               </button>
-            </div>
+              <p className="text-[#87928e] text-sm font-['Inter:Regular',sans-serif] mt-4">
+                Works with Phantom, Solflare, and other Solana wallets
+              </p>
+            </motion.div>
           )}
 
           {connected && (
