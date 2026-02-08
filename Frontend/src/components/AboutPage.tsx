@@ -1,8 +1,8 @@
 /**
- * ABOUT PAGE - DEEP DIVE INTO MATCHA
+ * ABOUT PAGE - DEEP DIVE INTO TicketChain
  * 
  * Content Strategy:
- * - Tell the story of why Matcha exists
+ * - Tell the story of why TicketChain exists
  * - Compare to traditional ticketing problems
  * - Technical details for hackathon judges
  * - Team/project vision
@@ -40,7 +40,7 @@ export function AboutPage() {
               Ticketing <span className="text-[#32b377]">Reimagined</span> for Web3
             </h1>
             <p className="text-[#87928e] text-2xl leading-relaxed font-['Inter:Regular',sans-serif]">
-              Matcha is rewriting the rules of live event ticketing. Built on Solana, 
+              TicketChain is rewriting the rules of live event ticketing. Built on Solana, 
               powered by fans, designed for fairness.
             </p>
           </motion.div>
@@ -103,7 +103,7 @@ export function AboutPage() {
               </ul>
             </motion.div>
             
-            {/* Matcha Solution */}
+            {/* TicketChain Solution */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -116,7 +116,7 @@ export function AboutPage() {
                   <Check className="w-6 h-6 text-[#32b377]" />
                 </div>
                 <h3 className="font-['Space_Grotesk:Bold',sans-serif] text-2xl">
-                  Matcha Platform
+                  TicketChain Platform
                 </h3>
               </div>
               <ul className="space-y-4">
