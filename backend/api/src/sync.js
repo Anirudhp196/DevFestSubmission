@@ -13,7 +13,7 @@ import {
   pruneStaleEvents,
 } from './db.js';
 
-const SYNC_INTERVAL_MS = 10_000; // 10 seconds
+const SYNC_INTERVAL_MS = 3_000; // 3 seconds
 
 let syncing = false;
 
@@ -69,5 +69,5 @@ export function startSync() {
  * Non-blocking — fires and forgets so the API response isn't delayed.
  */
 export function triggerSync() {
-  setTimeout(() => syncFromChain(), 2000); // 2s delay to let the tx confirm on-chain
+  setTimeout(() => syncFromChain(), 500); // short delay to let the tx confirm on-chain
 }
